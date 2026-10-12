@@ -4,7 +4,7 @@ RedTracks is a [Wails v3](https://v3.wails.io/) desktop app: a Go backend with a
 
 ## Backend (Go)
 
-- Go 1.26 (toolchain pinned in `mise.toml`), module `github.com/unclesp1d3r/redtracks`.
+- Go 1.27 (toolchain pinned in `mise.toml`), module `github.com/unclesp1d3r/redtracks`.
 - Wails `v3.0.0-beta.28` — pinned to one beta tag; version bumps are their own commit, never mid-feature.
 - Standard library first; current dependencies are only Wails and its transitive deps.
 - No database. State is plain JSON files written through one atomic write path (temp file, fsync, rename) with per-file SHA-256 hash-check-and-reapply.

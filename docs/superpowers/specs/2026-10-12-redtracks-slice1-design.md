@@ -26,7 +26,7 @@ Each of these gets its own spec later:
 | Area           | Decision                                                  | Why                                                                                                                                        |
 | -------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | Shell          | Wails v3 beta, pinned to one tag                          | Go backend, native macOS WebKit window, server build mode as an emergency fallback, generated TypeScript bindings keep the frontend honest |
-| Backend        | Go 1.26                                                   | Parsers, file formats, and all tested logic live here                                                                                      |
+| Backend        | Go 1.27                                                   | Parsers, file formats, and all tested logic live here                                                                                      |
 | Frontend       | React, TypeScript, Tailwind, shadcn/ui, mermaid.js        | Operator is comfortable with shadcn; frontend is tables and forms, not where the interesting code is                                       |
 | Storage        | Plain JSON files, one folder per engagement               | Readable and editable without the app during an exam; JSON over YAML to avoid whitespace mistakes                                          |
 | Checklists     | JSON files in a shared user directory, shipped sample set | The format is the product; the content is the operator's to curate                                                                         |
@@ -532,7 +532,7 @@ Target is 80% line coverage in `internal/`. Coverage is not measured for `cmd/` 
 
 ## 12. Build and tooling
 
-- Go 1.26, Wails v3 pinned to a single beta tag in `go.mod` and `Taskfile.yml`. Bumping the pin is a deliberate commit on its own.
+- Go 1.27, Wails v3 pinned to a single beta tag in `go.mod` and `Taskfile.yml`. Bumping the pin is a deliberate commit on its own.
 - `wails3 init -t react` (TypeScript) is the scaffold; bun is the package manager. Tailwind and shadcn/ui added on top with the shadcn CLI. mermaid.js as a frontend dependency.
 - Taskfile targets: `dev`, `build`, `test` (Go and vitest), `e2e` (Playwright against server build), `lint` (`go vet`, `golangci-lint`, `tsc --noEmit`).
 - Repository layout:
