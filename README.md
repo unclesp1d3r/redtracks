@@ -55,7 +55,7 @@ The app writes the JSON files atomically and reloads them when you edit them by 
 
 ## Checklists
 
-A checklist is one JSON file in `checklists/` with a `match` rule (a service type, port, or host OS) and a list of items, each with a title, a hint, and commands. On first run the bundled set is copied there once and never overwritten. Edit, add, or delete files freely; the app reloads them while it runs.
+A checklist is one JSON file in `checklists/` with a `match` rule (service types or host OS) and a list of items, each with a title, a hint, and commands. On first run the bundled set is copied there once and never overwritten. Edit, add, or delete files freely; the app reloads them while it runs.
 
 On a host page, focus an item and press space to mark it done. Skip and N/A are buttons on the row. Commands substitute the host IP and engagement domain when copied.
 
