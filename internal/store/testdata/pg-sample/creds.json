@@ -1,0 +1,18 @@
+{
+  "credentials": [
+    {
+      "id": "C4D8N2V7QK",
+      "username": "admin",
+      "secret": "nibbles",
+      "kind": "password",
+      "domain": "",
+      "foundOnHostId": "K3M7Q2ZX9A",
+      "worksOn": [],
+      "triedOn": [],
+      "notes": "nibbleblog admin panel"
+    }
+  ],
+  "users": [],
+  "shares": [],
+  "loot": []
+}
