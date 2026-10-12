@@ -1,6 +1,8 @@
 # RedTracks, slice one: structured target tracker
 
-Date: 2026-10-12 Status: draft for review License of the resulting code: Apache-2.0
+- Date: 2026-10-12
+- Status: approved 2026-10-12
+- License of the resulting code: Apache-2.0
 
 ## 1. Purpose
 
