@@ -22,6 +22,7 @@ markdownlint-cli2                                                       = "0.23.
 "pipx:pre-commit"                                                       = "4.6.2"
 python                                                                  = "3.15.0"
 uv                                                                      = "0.13.0"
+android-sdk                                                             = "latest"
 
 # Many of these settings are defaults, but we are explicit in case they change in the future and to make it clear to users what is enabled.
 [settings]
