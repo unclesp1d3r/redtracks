@@ -25,7 +25,7 @@ export function ChecklistPane({ ip, serviceId, domain }: PaneProps) {
   const setItem = useMutation({
     mutationFn: (v: { itemId: string; status: ItemStatus; note: string }) =>
       HostService.SetItem(ip, serviceId, v.itemId, v.status, v.note),
-    // Refetch right away; the engagement:changed event also invalidates.
+    // onSettled also covers the error path; the global mutation onSuccess covers success.
     onSettled: () => qc.invalidateQueries({ queryKey: keys.checklists(ip, serviceId) }),
   });
   return (

@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import { QueryStates } from "@/components/QueryStates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EngagementService } from "@/lib/api";
+import { hostsOf } from "@/lib/api";
 import type { Engagement, Host } from "@/lib/api";
-import { keys } from "@/lib/query";
+import { useEngagementQuery } from "@/lib/query";
 import { AccessPaths } from "./AccessPaths";
 import { AddServiceDialog } from "./AddServiceDialog";
 import { HostHeader } from "./HostHeader";
@@ -21,14 +20,15 @@ export function domainFor(host: Host, engagementDomain: string): string {
 
 export function HostPage() {
   const { ip = "" } = useParams();
-  const query = useQuery({ queryKey: keys.engagement(), queryFn: () => EngagementService.Current() });
+  const query = useEngagementQuery();
+  const notFound = <p className="text-sm text-muted-foreground">No host with IP {ip} in this engagement.</p>;
   return (
-    <QueryStates
-      query={query}
-      isEmpty={(e) => !(e.Hosts ?? []).some((h) => h.ip === ip)}
-      empty={<p className="text-sm text-muted-foreground">No host with IP {ip} in this engagement.</p>}
-    >
-      {(eng) => <HostView eng={eng} host={(eng.Hosts ?? []).find((h) => h.ip === ip)!} />}
+    // A missing host is decided inside children so the host is looked up once.
+    <QueryStates query={query} isEmpty={() => false} empty={notFound}>
+      {(eng) => {
+        const host = hostsOf(eng).find((h) => h.ip === ip);
+        return host ? <HostView eng={eng} host={host} /> : notFound;
+      }}
     </QueryStates>
   );
 }
@@ -45,7 +45,7 @@ function HostView({ eng, host }: { eng: Engagement; host: Host }) {
       <HostHeader host={host} meta={eng.Meta} />
       <AccessPaths
         host={host}
-        otherHosts={(eng.Hosts ?? []).filter((h) => h.ip !== host.ip)}
+        otherHosts={hostsOf(eng).filter((h) => h.ip !== host.ip)}
         credentials={eng.Creds.credentials ?? []}
       />
       <Tabs defaultValue="services">

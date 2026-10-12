@@ -17,12 +17,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { EngagementService, type Host } from "@/lib/api";
-import { NONE } from "./shared";
+import { serviceLabel, type Host } from "@/lib/api";
+import { NONE, ROW_API, hostOptions, FINDING_STATUSES, type Option, type RowKind } from "./shared";
 
-export type RowKind = "credential" | "user" | "share" | "loot" | "finding";
 type Draft = Record<string, string>;
-type Option = { value: string; label: string };
 
 interface Field {
   key: string;
@@ -33,7 +31,6 @@ interface Field {
 
 const KINDS = ["password", "hash", "key", "token"] as const;
 const SEVERITIES = ["info", "low", "medium", "high", "critical"] as const;
-export const FINDING_STATUSES = ["noted", "confirmed", "exploited", "false-positive"] as const;
 
 const FIELDS: Record<RowKind, Field[]> = {
   credential: [
@@ -90,16 +87,6 @@ const REQUIRED: Record<RowKind, string> = {
   finding: "title",
 };
 
-type Api = Record<string, (row: never) => Promise<void>>;
-const api = EngagementService as unknown as Api;
-const NAMES: Record<RowKind, string> = {
-  credential: "Credential",
-  user: "User",
-  share: "Share",
-  loot: "Loot",
-  finding: "Finding",
-};
-
 function toDraft(kind: RowKind, row?: object): Draft {
   const base = { ...DEFAULTS[kind] };
   for (const f of FIELDS[kind]) {
@@ -113,7 +100,7 @@ function serviceOptions(hosts: Host[], hostId: string): Option[] {
   const svcs = hosts.find((h) => h.id === hostId)?.services ?? [];
   return [
     { value: NONE, label: "(none)" },
-    ...svcs.map((s) => ({ value: s.id, label: `${s.port}/${s.protocol} ${s.type}`.trim() })),
+    ...svcs.map((s) => ({ value: s.id, label: serviceLabel(s) })),
   ];
 }
 
@@ -139,10 +126,6 @@ function OptionSelect({ label, value, options, onChange }: {
   );
 }
 
-export function hostOptions(hosts: Host[], key: "id" | "ip" = "id"): Option[] {
-  return [{ value: NONE, label: "(none)" }, ...hosts.map((h) => ({ value: h[key], label: h.ip }))];
-}
-
 interface Props {
   kind: RowKind;
   /** Existing row for edit mode; absent for add. */
@@ -161,7 +144,7 @@ export function AddRowDialog({ kind, row, hosts, open, onOpenChange }: Props) {
     mutationFn: () => {
       // Edit merges over the original so fields not in the form (worksOn, triedOn) survive.
       const payload = { ...(row ?? { id: "" }), ...draft };
-      return api[`${isEdit ? "Update" : "Add"}${NAMES[kind]}`](payload as never);
+      return ROW_API[kind][isEdit ? "update" : "add"](payload as never);
     },
     onSuccess: () => onOpenChange(false),
   });
@@ -194,7 +177,7 @@ export function AddRowDialog({ kind, row, hosts, open, onOpenChange }: Props) {
         <form onSubmit={submit} className="space-y-3">
           <DialogHeader>
             <DialogTitle>
-              {isEdit ? "Edit" : "Add"} {NAMES[kind].toLowerCase()}
+              {isEdit ? "Edit" : "Add"} {kind}
             </DialogTitle>
           </DialogHeader>
           {FIELDS[kind].map((f) => (

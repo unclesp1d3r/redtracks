@@ -15,6 +15,7 @@ export {
   HostStatus,
   ItemStatus,
 } from "../../bindings/github.com/unclesp1d3r/redtracks/internal/model";
+import type { Engagement, Host, Service } from "../../bindings/github.com/unclesp1d3r/redtracks/internal/model";
 export type {
   AccessPath,
   ChecklistState,
@@ -54,7 +55,17 @@ export async function list<T>(p: Promise<T[] | null>): Promise<T[]> {
 }
 
 export function errorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === "string") return e;
-  return String(e);
+  return e instanceof Error ? e.message : String(e);
+}
+
+export function hostsOf(e: Engagement): Host[] {
+  return e.Hosts ?? [];
+}
+
+export function hostPath(ip: string): string {
+  return `/host/${encodeURIComponent(ip)}`;
+}
+
+export function serviceLabel(s: Service): string {
+  return `${s.port}/${s.protocol} ${s.type}`.trim();
 }

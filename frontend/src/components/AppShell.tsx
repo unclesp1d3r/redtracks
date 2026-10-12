@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowLeftIcon, TriangleAlertIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AddHostDialog } from "@/features/board/AddHostDialog";
-import { EngagementService } from "@/lib/api";
 import { useErrorBanner } from "@/lib/errorBanner";
-import { keys } from "@/lib/query";
+import { useEngagementQuery } from "@/lib/query";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./CommandPalette";
 
@@ -24,7 +22,7 @@ const ROOT_LABEL = "~/RedTracks";
 export function AppShell() {
   const [addingHost, setAddingHost] = useState(false);
   const banner = useErrorBanner();
-  const engagement = useQuery({ queryKey: keys.engagement(), queryFn: () => EngagementService.Current() });
+  const engagement = useEngagementQuery();
 
   return (
     <TooltipProvider>

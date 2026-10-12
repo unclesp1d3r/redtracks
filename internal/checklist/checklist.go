@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -97,7 +98,7 @@ func loadOne(path string) (Definition, error) {
 func ForService(defs []Definition, s model.Service) []Definition {
 	out := make([]Definition, 0, len(defs))
 	for _, def := range defs {
-		if containsString(def.Match.ServiceTypes, s.Type) {
+		if slices.Contains(def.Match.ServiceTypes, s.Type) {
 			out = append(out, def)
 		}
 	}
@@ -109,7 +110,7 @@ func ForService(defs []Definition, s model.Service) []Definition {
 func ForHost(defs []Definition, h model.Host) []Definition {
 	out := make([]Definition, 0, len(defs))
 	for _, def := range defs {
-		if containsFold(def.Match.HostOS, h.OS) {
+		if slices.ContainsFunc(def.Match.HostOS, func(v string) bool { return strings.EqualFold(v, h.OS) }) {
 			out = append(out, def)
 		}
 	}
@@ -202,22 +203,4 @@ func dirSignature(dir string) (string, error) {
 		fmt.Fprintf(&sb, "%s:%d:%d;", path, info.Size(), info.ModTime().UnixNano())
 	}
 	return sb.String(), nil
-}
-
-func containsString(values []string, target string) bool {
-	for _, v := range values {
-		if v == target {
-			return true
-		}
-	}
-	return false
-}
-
-func containsFold(values []string, target string) bool {
-	for _, v := range values {
-		if strings.EqualFold(v, target) {
-			return true
-		}
-	}
-	return false
 }

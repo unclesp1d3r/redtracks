@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { QueryStates } from "@/components/QueryStates";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { EngagementService, ImportBadge, ImportService, type PreviewResponse } from "@/lib/api";
-import { keys } from "@/lib/query";
+import { ImportBadge, ImportService, hostsOf, type PreviewResponse } from "@/lib/api";
+import { useEngagementQuery } from "@/lib/query";
 import { DropZone } from "./DropZone";
 import { PreviewTable } from "./PreviewTable";
 import { isResolved, ResolveHosts, toOverrides, type Choices } from "./ResolveHosts";
@@ -18,7 +18,7 @@ function Preview({ response, onDone }: { response: PreviewResponse; onDone: () =
   const unresolved = preview.Unresolved ?? [];
   const [choices, setChoices] = useState<Choices>({});
   const [skip, setSkip] = useState(false);
-  const engagement = useQuery({ queryKey: keys.engagement(), queryFn: () => EngagementService.Current() });
+  const engagement = useEngagementQuery();
 
   const pending = unresolved.filter((u) => !isResolved(choices[u.Key]));
   const apply = useMutation({
@@ -51,7 +51,7 @@ function Preview({ response, onDone }: { response: PreviewResponse; onDone: () =
             {(eng) => (
               <ResolveHosts
                 unresolved={unresolved}
-                hostIps={(eng.Hosts ?? []).map((h) => h.ip)}
+                hostIps={hostsOf(eng).map((h) => h.ip)}
                 choices={choices}
                 onChange={setChoices}
               />

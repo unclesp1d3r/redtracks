@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import {
   Command,
@@ -10,8 +9,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { EngagementService } from "@/lib/api";
-import { keys } from "@/lib/query";
+import { hostPath, hostsOf } from "@/lib/api";
+import { useEngagementQuery } from "@/lib/query";
 
 export const SCREENS = [
   { label: "Board", to: "/board" },
@@ -24,7 +23,7 @@ export const SCREENS = [
 export function CommandPalette({ onAddHost }: { onAddHost: () => void }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const engagement = useQuery({ queryKey: keys.engagement(), queryFn: () => EngagementService.Current() });
+  const engagement = useEngagementQuery();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -41,7 +40,7 @@ export function CommandPalette({ onAddHost }: { onAddHost: () => void }) {
     setOpen(false);
     navigate(to);
   };
-  const hosts = engagement.data?.Hosts ?? [];
+  const hosts = engagement.data ? hostsOf(engagement.data) : [];
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
@@ -69,7 +68,7 @@ export function CommandPalette({ onAddHost }: { onAddHost: () => void }) {
               <CommandItem
                 key={h.id}
                 value={`${h.ip} ${h.hostname}`}
-                onSelect={() => go(`/host/${encodeURIComponent(h.ip)}`)}
+                onSelect={() => go(hostPath(h.ip))}
               >
                 <span className="font-mono">{h.ip}</span>
                 <span className="text-muted-foreground">{h.hostname}</span>
@@ -82,7 +81,7 @@ export function CommandPalette({ onAddHost }: { onAddHost: () => void }) {
                 <CommandItem
                   key={`${h.id}:${s.id}`}
                   value={`${h.ip}:${s.port} ${s.type}`}
-                  onSelect={() => go(`/host/${encodeURIComponent(h.ip)}`)}
+                  onSelect={() => go(hostPath(h.ip))}
                 >
                   <span className="font-mono">
                     {h.ip}:{s.port}

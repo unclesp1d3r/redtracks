@@ -8,9 +8,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EngagementService, type Finding } from "@/lib/api";
-import { FINDING_STATUSES } from "./AddRowDialog";
 import { RowTable } from "./RowTable";
-import { hostIp } from "./shared";
+import { FINDING_STATUSES, hostIp } from "./shared";
 
 function StatusSelect({ finding }: { finding: Finding }) {
   const update = useMutation({ mutationFn: (status: string) => EngagementService.UpdateFinding({ ...finding, status }) });

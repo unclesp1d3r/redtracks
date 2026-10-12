@@ -1,8 +1,18 @@
 import { useEffect, useId, useState } from "react";
 import DOMPurify from "dompurify";
-import mermaid from "mermaid";
 
-mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "dark" });
+type MermaidApi = (typeof import("mermaid"))["default"];
+
+// Loaded on first render so the large mermaid bundle stays out of the initial chunk.
+let mermaidReady: Promise<MermaidApi> | undefined;
+
+function loadMermaid(): Promise<MermaidApi> {
+  mermaidReady ??= import("mermaid").then(({ default: mermaid }) => {
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "dark" });
+    return mermaid;
+  });
+  return mermaidReady;
+}
 
 type Rendered = { svg: string } | { error: string };
 
@@ -12,8 +22,8 @@ export function Mermaid({ text }: { text: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    mermaid
-      .render(id, text)
+    loadMermaid()
+      .then((mermaid) => mermaid.render(id, text))
       .then(({ svg }) => {
         if (cancelled) return;
         const clean = DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } });

@@ -1,6 +1,7 @@
 package importers
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"net/url"
@@ -165,10 +166,12 @@ func newHost(ip string) model.Host {
 // Unresolved hosts are reported and never written. The raw file is saved once,
 // under the first resolved host.
 func Apply(st *store.Store, res Result, overrides map[string]string, raw []byte) (Preview, error) {
-	targets, unresolved := resolveAll(st.Engagement(), res, overrides)
-	preview := buildPreview(st.Engagement(), res.Tool, targets, unresolved)
+	eng := st.Engagement()
+	targets, unresolved := resolveAll(eng, res, overrides)
+	preview := buildPreview(eng, res.Tool, targets, unresolved)
 	for _, t := range targets {
-		if err := writeTarget(st, t, res.Tool); err != nil {
+		_, exists := eng.Host(t.ip)
+		if err := writeTarget(st, t, res.Tool, exists); err != nil {
 			return preview, fmt.Errorf("import %s into %s: %w", res.Tool, t.ip, err)
 		}
 	}
@@ -180,18 +183,27 @@ func Apply(st *store.Store, res Result, overrides map[string]string, raw []byte)
 	return preview, nil
 }
 
-func writeTarget(st *store.Store, t target, tool string) error {
-	if _, ok := st.Engagement().Host(t.ip); ok {
-		err := st.MutateHost(t.ip, func(h *model.Host) error {
+// writeTarget merges t into its host. exists comes from the snapshot taken at
+// the start of Apply; a host created meanwhile (by an earlier target or
+// another writer) makes AddHost fail with ErrHostExists and is merged instead.
+func writeTarget(st *store.Store, t target, tool string, exists bool) error {
+	mutate := func() error {
+		return st.MutateHost(t.ip, func(h *model.Host) error {
 			*h, _ = mergeHost(*h, t, tool, false)
 			return nil
 		})
-		if err != nil {
+	}
+	if exists {
+		if err := mutate(); err != nil {
 			return err
 		}
 	} else {
 		h, _ := mergeHost(newHost(t.ip), t, tool, true)
-		if err := st.AddHost(h); err != nil {
+		err := st.AddHost(h)
+		if errors.Is(err, store.ErrHostExists) {
+			err = mutate()
+		}
+		if err != nil {
 			return err
 		}
 	}

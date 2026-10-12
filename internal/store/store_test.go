@@ -275,6 +275,27 @@ func TestReloadKeepsLastGoodOnParseError(t *testing.T) {
 	}
 }
 
+func TestRefreshSkipsReadWhenMtimeUnchanged(t *testing.T) {
+	dir := copyFixture(t)
+	s := mustOpen(t, dir)
+	path := filepath.Join(dir, hostRel)
+	if err := os.Chmod(path, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(path, 0o600); err != nil {
+			t.Error(err)
+		}
+	})
+	if _, err := os.ReadFile(path); err == nil {
+		t.Skip("file stays readable (running as root?)")
+	}
+	changed, err := s.Reload()
+	if err != nil || len(changed) != 0 {
+		t.Fatalf("Reload = %v, %v; want no change and no error", changed, err)
+	}
+}
+
 func TestAddHostCreatesFolder(t *testing.T) {
 	dir := copyFixture(t)
 	s := mustOpen(t, dir)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
@@ -65,12 +66,7 @@ func (s *Store) hostSpec(ip string) (fileSpec[model.Host], error) {
 		return fileSpec[model.Host]{}, err
 	}
 	index := func() int {
-		for i, h := range s.eng.Hosts {
-			if h.IP == ip {
-				return i
-			}
-		}
-		return -1
+		return slices.IndexFunc(s.eng.Hosts, func(h model.Host) bool { return h.IP == ip })
 	}
 	return fileSpec[model.Host]{
 		path: path,
@@ -100,17 +96,26 @@ func (s *Store) hostSpec(ip string) (fileSpec[model.Host], error) {
 	}, nil
 }
 
-// readState returns the file bytes (nil if missing) and its mtime (zero if missing).
-func readState(path string) ([]byte, time.Time, error) {
+// statMtime returns the file's mtime, or the zero time if the file is missing.
+func statMtime(path string) (time.Time, error) {
 	info, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, time.Time{}, nil
+		return time.Time{}, nil
 	}
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("stat %s: %w", path, err)
+		return time.Time{}, fmt.Errorf("stat %s: %w", path, err)
+	}
+	return info.ModTime(), nil
+}
+
+// readState returns the file bytes (nil if missing) and its mtime (zero if missing).
+func readState(path string) ([]byte, time.Time, error) {
+	mtime, err := statMtime(path)
+	if err != nil {
+		return nil, time.Time{}, err
 	}
 	data, err := readOptional(path)
-	return data, info.ModTime(), err
+	return data, mtime, err
 }
 
 func (sp fileSpec[T]) decode(data []byte) (T, error) {
@@ -138,12 +143,16 @@ func (s *Store) record(path string, data []byte, mtime time.Time) {
 // refresh re-reads the file when its mtime moved and adopts the parsed value.
 // On a parse failure the in-memory copy and recorded hash stay untouched.
 func refresh[T any](s *Store, sp fileSpec[T]) (bool, error) {
-	data, mtime, err := readState(sp.path)
+	mtime, err := statMtime(sp.path)
 	if err != nil {
 		return false, err
 	}
 	if known, ok := s.mtimes[sp.path]; ok && known.Equal(mtime) {
 		return false, nil
+	}
+	data, err := readOptional(sp.path)
+	if err != nil {
+		return false, err
 	}
 	v, err := sp.decode(data)
 	if err != nil {
@@ -184,16 +193,24 @@ func mutate[T any](s *Store, sp fileSpec[T], fn func(*T) error) error {
 	return persist(s, sp, work)
 }
 
+// marshalIndentNL marshals v as two-space-indented JSON with a trailing newline.
+func marshalIndentNL(v any) ([]byte, error) {
+	out, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return nil, err //nolint:wrapcheck // callers add the path context
+	}
+	return append(out, '\n'), nil
+}
+
 // persist normalises v, writes it atomically, and adopts it in memory.
 func persist[T any](s *Store, sp fileSpec[T], v T) error {
 	if sp.normalize != nil {
 		v = sp.normalize(v)
 	}
-	out, err := json.MarshalIndent(v, "", "  ")
+	out, err := marshalIndentNL(v)
 	if err != nil {
 		return fmt.Errorf("marshal %s: %w", sp.path, err)
 	}
-	out = append(out, '\n')
 	if err := WriteAtomic(sp.path, out); err != nil {
 		return err
 	}

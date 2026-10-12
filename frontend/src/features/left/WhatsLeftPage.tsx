@@ -1,17 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { QueryStates } from "@/components/QueryStates";
 import { buttonVariants } from "@/components/ui/button";
-import { EngagementService, list } from "@/lib/api";
-import { keys } from "@/lib/query";
+import { hostsOf } from "@/lib/api";
+import { useEngagementQuery, useSummariesQuery } from "@/lib/query";
 import { HostLeftCard, hasNothingLeft, type UntriedCred } from "./HostLeftCard";
 
 export function WhatsLeftPage() {
-  const summaries = useQuery({ queryKey: keys.summaries(), queryFn: () => list(EngagementService.Summaries()) });
-  const engagement = useQuery({ queryKey: keys.engagement(), queryFn: () => EngagementService.Current() });
+  const summaries = useSummariesQuery();
+  const engagement = useEngagementQuery();
 
   const flagLabels = new Map((engagement.data?.Meta.flagTypes ?? []).map((f) => [f.id, f.label]));
-  const hosts = engagement.data?.Hosts ?? [];
+  const hosts = engagement.data ? hostsOf(engagement.data) : [];
   const hostName = new Map(hosts.map((h) => [h.id, h.hostname || h.ip]));
   const creds = new Map<string, UntriedCred>(
     (engagement.data?.Creds.credentials ?? []).map((c) => [

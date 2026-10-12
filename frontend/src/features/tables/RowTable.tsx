@@ -11,23 +11,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EngagementService, type Engagement, type Host } from "@/lib/api";
-import { AddRowDialog, type RowKind } from "./AddRowDialog";
-import { hostsOf, useEngagementQuery } from "./shared";
-
-type Api = Record<string, (id: string) => Promise<void>>;
-const api = EngagementService as unknown as Api;
-const DELETE_METHOD: Record<RowKind, string> = {
-  credential: "DeleteCredential",
-  user: "DeleteUser",
-  share: "DeleteShare",
-  loot: "DeleteLoot",
-  finding: "DeleteFinding",
-};
+import { hostsOf, type Engagement, type Host } from "@/lib/api";
+import { useEngagementQuery } from "@/lib/query";
+import { AddRowDialog } from "./AddRowDialog";
+import { ROW_API, type RowKind } from "./shared";
 
 function DeleteButton({ kind, id, label }: { kind: RowKind; id: string; label: string }) {
   const [confirming, setConfirming] = useState(false);
-  const del = useMutation({ mutationFn: () => api[DELETE_METHOD[kind]](id) });
+  const del = useMutation({ mutationFn: () => ROW_API[kind].remove(id) });
   if (!confirming) {
     return (
       <Button variant="ghost" size="icon-sm" aria-label={`Delete ${label}`} onClick={() => setConfirming(true)}>

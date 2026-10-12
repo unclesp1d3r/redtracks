@@ -18,6 +18,9 @@ import (
 // "conflict".
 var ErrConflict = errors.New("conflict")
 
+// ErrHostExists means AddHost found the host already present.
+var ErrHostExists = errors.New("already exists")
+
 // Store holds one engagement folder in memory and keeps it in step with disk.
 type Store struct {
 	dir    string
@@ -110,10 +113,10 @@ func (s *Store) AddHost(h model.Host) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.eng.Host(h.IP); ok {
-		return fmt.Errorf("host %s already exists", h.IP)
+		return fmt.Errorf("host %s %w", h.IP, ErrHostExists)
 	}
 	if _, err := os.Stat(sp.path); err == nil {
-		return fmt.Errorf("host %s already exists: %s", h.IP, sp.path)
+		return fmt.Errorf("host %s %w: %s", h.IP, ErrHostExists, sp.path)
 	}
 	if err := os.MkdirAll(filepath.Dir(sp.path), dirMode); err != nil {
 		return fmt.Errorf("create %s: %w", filepath.Dir(sp.path), err)

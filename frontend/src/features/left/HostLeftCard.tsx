@@ -2,7 +2,7 @@ import { TriangleAlertIcon } from "lucide-react";
 import { Link } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { HostSummary } from "@/lib/api";
+import { hostPath, type HostSummary } from "@/lib/api";
 
 export interface UntriedCred {
   id: string;
@@ -39,7 +39,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function HostLeftCard({ summary, flagLabels, creds }: Props) {
-  const href = `/host/${encodeURIComponent(summary.IP)}`;
+  const href = hostPath(summary.IP);
   const missing = summary.MissingFlags ?? [];
   const untouched = summary.UntouchedServices ?? [];
   const untried = summary.UntriedCreds ?? [];

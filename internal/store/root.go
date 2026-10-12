@@ -1,7 +1,6 @@
 package store
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -148,11 +147,11 @@ func CreateEngagement(root, name, domain string, t model.EngagementType) (string
 	if meta.FlagTypes == nil {
 		meta.FlagTypes = []model.FlagType{}
 	}
-	data, err := json.MarshalIndent(meta, "", "  ")
+	data, err := marshalIndentNL(meta)
 	if err != nil {
 		return "", fmt.Errorf("marshal %s: %w", metaPath(dir), err)
 	}
-	if err := WriteAtomic(metaPath(dir), append(data, '\n')); err != nil {
+	if err := WriteAtomic(metaPath(dir), data); err != nil {
 		return "", err
 	}
 	if err := WriteAtomic(filepath.Join(dir, notesFile), nil); err != nil {

@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { FlagType, Host, HostSummary } from "@/lib/api";
+import { hostPath, type FlagType, type Host, type HostSummary } from "@/lib/api";
 
 const STATUS_STYLE: Record<string, string> = {
   root: "bg-primary text-primary-foreground",
@@ -21,7 +21,7 @@ interface Props {
 export function HostRow({ summary, host, flagTypes }: Props) {
   const captured = new Set((host?.flags ?? []).filter((f) => f.value !== "").map((f) => f.typeId));
   const pathCount = host?.accessPaths?.length ?? 0;
-  const href = `/host/${encodeURIComponent(summary.IP)}`;
+  const href = hostPath(summary.IP);
   return (
     <TableRow>
       <TableCell>

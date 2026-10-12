@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HostService, errorMessage } from "@/lib/api";
 import type { AccessPath, Credential, Host } from "@/lib/api";
+import { NONE } from "@/features/tables/shared";
 
 const METHODS = ["direct", "chisel", "ssh-tunnel", "rdp", "winrm", "other"];
-const NONE = "none";
 
 interface Props {
   host: Host;

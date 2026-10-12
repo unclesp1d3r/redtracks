@@ -1,7 +1,7 @@
 import { Events } from "@wailsio/runtime";
-import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { errorMessage } from "./api";
+import { EngagementService, errorMessage, list } from "./api";
 import { errorBanner } from "./errorBanner";
 
 declare module "@tanstack/react-query" {
@@ -36,6 +36,15 @@ export const keys = {
   notes: (ip: string) => ["notes", ip] as const,
   definitions: () => ["definitions"] as const,
 };
+
+/** Same query key as the rest of the app, so every screen shares one fetch. */
+export function useEngagementQuery() {
+  return useQuery({ queryKey: keys.engagement(), queryFn: () => EngagementService.Current() });
+}
+
+export function useSummariesQuery() {
+  return useQuery({ queryKey: keys.summaries(), queryFn: () => list(EngagementService.Summaries()) });
+}
 
 /** Notes are deliberately not invalidated: the notes editor owns its own refresh. */
 const INVALIDATED_ON_CHANGE = [

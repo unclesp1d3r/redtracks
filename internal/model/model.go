@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // EngagementType selects the default flag set.
 type EngagementType string
@@ -195,22 +198,20 @@ type Engagement struct {
 
 // Service returns the service with the given ID.
 func (h Host) Service(id string) (Service, bool) {
-	for _, s := range h.Services {
-		if s.ID == id {
-			return s, true
-		}
+	i := slices.IndexFunc(h.Services, func(s Service) bool { return s.ID == id })
+	if i < 0 {
+		return Service{}, false
 	}
-	return Service{}, false
+	return h.Services[i], true
 }
 
 // Host returns the host with the given IP.
 func (e Engagement) Host(ip string) (Host, bool) {
-	for _, h := range e.Hosts {
-		if h.IP == ip {
-			return h, true
-		}
+	i := slices.IndexFunc(e.Hosts, func(h Host) bool { return h.IP == ip })
+	if i < 0 {
+		return Host{}, false
 	}
-	return Host{}, false
+	return e.Hosts[i], true
 }
 
 func orEmpty[T any](s []T) []T {
