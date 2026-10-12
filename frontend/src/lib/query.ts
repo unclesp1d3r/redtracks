@@ -12,6 +12,9 @@ declare module "@tanstack/react-query" {
 
 export const queryClient = new QueryClient({
   mutationCache: new MutationCache({
+    // The backend only emits engagement:changed for edits made outside the app,
+    // so the app's own writes refresh the same queries here.
+    onSuccess: () => invalidateEngagementQueries(),
     onError: (error, _vars, _ctx, mutation) => {
       if (mutation.meta?.silent) return;
       toast.error(errorMessage(error), { duration: Infinity });
@@ -43,12 +46,14 @@ const INVALIDATED_ON_CHANGE = [
   keys.definitions(),
 ] as const;
 
+function invalidateEngagementQueries() {
+  INVALIDATED_ON_CHANGE.forEach((queryKey) => void queryClient.invalidateQueries({ queryKey }));
+}
+
 export function subscribeToEngagementEvents(): () => void {
   const offChanged = Events.On("engagement:changed", () => {
     errorBanner.clear();
-    INVALIDATED_ON_CHANGE.forEach((queryKey) =>
-      void queryClient.invalidateQueries({ queryKey }),
-    );
+    invalidateEngagementQueries();
   });
   const offError = Events.On("engagement:error", (e: { data: unknown }) => {
     errorBanner.set(typeof e.data === "string" ? e.data : errorMessage(e.data));

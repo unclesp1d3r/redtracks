@@ -174,8 +174,8 @@ export function AddRowDialog({ kind, row, hosts, open, onOpenChange }: Props) {
 
   function renderField(f: Field) {
     const value = draft[f.key] ?? "";
-    if (f.type === "textarea") return <Textarea value={value} onChange={(e) => set(f.key, e.target.value)} />;
-    if (f.type === "text") return <Input value={value} onChange={(e) => set(f.key, e.target.value)} />;
+    if (f.type === "textarea") return <Textarea aria-label={f.label} value={value} onChange={(e) => set(f.key, e.target.value)} />;
+    if (f.type === "text") return <Input aria-label={f.label} value={value} onChange={(e) => set(f.key, e.target.value)} />;
     if (f.type === "host") {
       // Changing host invalidates a service chosen for the previous host.
       const onChange = (v: string) => setDraft((d) => ({ ...d, [f.key]: v, serviceId: "" }));

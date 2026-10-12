@@ -33,8 +33,10 @@ tasks:
       - cd frontend && bunx tsc --noEmit
 
   e2e:
-    summary: Runs Playwright end-to-end tests
+    summary: Runs Playwright end-to-end tests against the server build
+    deps: [build:server]
     cmds:
+      - cd frontend && bunx playwright install chromium
       - cd frontend && bunx playwright test
 
   build:

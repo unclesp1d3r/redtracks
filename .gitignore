@@ -12,3 +12,4 @@ build/android/gen/
 frontend/bindings
 frontend/test-results
 cover.out
+frontend/playwright-report
