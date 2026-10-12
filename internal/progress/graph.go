@@ -8,6 +8,9 @@ import (
 )
 
 const (
+	// classPrefix keeps status class names clear of Mermaid's own classes such as
+	// "root", whose top-level group would otherwise inherit a status fill.
+	classPrefix = "st_"
 	// maxLabelRunes is the longest label emitted into the graph.
 	maxLabelRunes = 60
 	attackerNode  = "attacker"
@@ -57,11 +60,11 @@ func AttackGraph(eng model.Engagement) string {
 	}
 	for _, h := range eng.Hosts {
 		if h.Status != "" {
-			sb.WriteString("  class " + nodeID(h.IP) + " " + string(h.Status) + "\n")
+			sb.WriteString("  class " + nodeID(h.IP) + " " + classPrefix + string(h.Status) + "\n")
 		}
 	}
 	for _, sf := range statusFills {
-		sb.WriteString("  classDef " + string(sf.status) + " fill:" + sf.fill + "\n")
+		sb.WriteString("  classDef " + classPrefix + string(sf.status) + " fill:" + sf.fill + "\n")
 	}
 	return sb.String()
 }

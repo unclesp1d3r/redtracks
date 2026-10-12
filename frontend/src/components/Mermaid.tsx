@@ -8,7 +8,14 @@ let mermaidReady: Promise<MermaidApi> | undefined;
 
 function loadMermaid(): Promise<MermaidApi> {
   mermaidReady ??= import("mermaid").then(({ default: mermaid }) => {
-    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "dark" });
+    // SVG text labels (not HTML in <foreignObject>) so the SVG-only sanitiser keeps them.
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: "dark",
+      htmlLabels: false,
+      flowchart: { htmlLabels: false },
+    });
     return mermaid;
   });
   return mermaidReady;

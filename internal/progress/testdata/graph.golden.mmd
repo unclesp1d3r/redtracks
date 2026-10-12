@@ -8,13 +8,13 @@ flowchart LR
   h_10_0_0_5 -->|"ssh"| h_10_0_0_6
   h_10_0_0_6 -->|"winrm"| h_10_0_0_10
   attacker -->|"kerberoast"| h_10_0_0_10
-  class h_10_0_0_5 foothold
-  class h_10_0_0_6 user
-  class h_10_0_0_10 root
-  class h_fe80__1 untouched
-  classDef untouched fill:#3b3f4a
-  classDef enumerating fill:#1d4ed8
-  classDef foothold fill:#b45309
-  classDef user fill:#a16207
-  classDef root fill:#b91c1c
-  classDef done fill:#15803d
+  class h_10_0_0_5 st_foothold
+  class h_10_0_0_6 st_user
+  class h_10_0_0_10 st_root
+  class h_fe80__1 st_untouched
+  classDef st_untouched fill:#3b3f4a
+  classDef st_enumerating fill:#1d4ed8
+  classDef st_foothold fill:#b45309
+  classDef st_user fill:#a16207
+  classDef st_root fill:#b91c1c
+  classDef st_done fill:#15803d
