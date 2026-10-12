@@ -1,0 +1,51 @@
+{
+  "id": "rag-api",
+  "title": "RAG API",
+  "match": {
+    "serviceTypes": ["rag-api"]
+  },
+  "items": [
+    {
+      "id": "rag-api.sources",
+      "title": "Data source and index enumeration",
+      "hint": "Which documents, collections, or indexes back retrieval",
+      "commands": ["curl -s http://$T/collections"]
+    },
+    {
+      "id": "rag-api.retrievalpoisoning",
+      "title": "Retrieval poisoning",
+      "hint": "Submit a document containing hidden instructions, then query for it",
+      "commands": []
+    },
+    {
+      "id": "rag-api.promptinjection",
+      "title": "Prompt injection via retrieved chunks",
+      "hint": "Craft a chunk designed to redirect the answer or trigger a tool call",
+      "commands": []
+    },
+    {
+      "id": "rag-api.crosstenant",
+      "title": "Cross-tenant or cross-collection data leakage",
+      "hint": "Query across tenant boundaries with manipulated IDs",
+      "commands": []
+    },
+    {
+      "id": "rag-api.credexposure",
+      "title": "Credential exposure in configuration",
+      "hint": "Check embedding/vector DB connection strings and API keys",
+      "commands": []
+    },
+    {
+      "id": "rag-api.unauth",
+      "title": "Unauthenticated ingestion or query endpoints",
+      "hint": "",
+      "commands": ["curl -s http://$T/query -d '{\"q\":\"test\"}'"]
+    },
+    {
+      "id": "rag-api.deletion",
+      "title": "Unauthorized document deletion or overwrite",
+      "hint": "",
+      "commands": []
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "id": "ldap",
+  "title": "LDAP",
+  "match": {
+    "serviceTypes": ["ldap", "ldaps"]
+  },
+  "items": [
+    {
+      "id": "ldap.anonymous",
+      "title": "Anonymous bind check",
+      "hint": "",
+      "commands": ["ldapsearch -x -H ldap://$T -b '' -s base"]
+    },
+    {
+      "id": "ldap.naming",
+      "title": "Naming contexts and domain discovery",
+      "hint": "",
+      "commands": ["ldapsearch -x -H ldap://$T -s base namingcontexts"]
+    },
+    {
+      "id": "ldap.users",
+      "title": "User and group enumeration",
+      "hint": "",
+      "commands": ["ldapsearch -x -H ldap://$T -b 'dc=$D' '(objectClass=user)'"]
+    },
+    {
+      "id": "ldap.asreproast",
+      "title": "AS-REP roastable accounts",
+      "hint": "DONT_REQ_PREAUTH accounts",
+      "commands": ["GetNPUsers.py $D/ -usersfile users.txt -no-pass -dc-ip $T"]
+    },
+    {
+      "id": "ldap.kerberoast",
+      "title": "Kerberoastable service accounts",
+      "hint": "Requires valid creds",
+      "commands": ["GetUserSPNs.py $D/user -dc-ip $T"]
+    },
+    {
+      "id": "ldap.delegation",
+      "title": "Unconstrained and constrained delegation",
+      "hint": "",
+      "commands": []
+    },
+    {
+      "id": "ldap.acl",
+      "title": "Interesting ACLs",
+      "hint": "GenericAll, WriteDacl, ForceChangePassword and similar",
+      "commands": ["bloodhound-python -d $D -u user -p pass -c All -ns $T"]
+    }
+  ]
+}

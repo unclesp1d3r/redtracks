@@ -1,0 +1,60 @@
+{
+  "id": "http",
+  "title": "HTTP / HTTPS",
+  "match": {
+    "serviceTypes": ["http", "https", "http-proxy", "http-alt"]
+  },
+  "items": [
+    {
+      "id": "http.robots",
+      "title": "robots.txt, sitemap.xml, .well-known",
+      "hint": "",
+      "commands": [
+        "curl -s http://$T/robots.txt",
+        "curl -s http://$T/sitemap.xml"
+      ]
+    },
+    {
+      "id": "http.headers",
+      "title": "Headers and server banner",
+      "hint": "Note the server, framework, and any X-Powered-By header",
+      "commands": ["curl -sI http://$T"]
+    },
+    {
+      "id": "http.dirbust",
+      "title": "Directory brute force",
+      "hint": "Try at least two wordlists and common extensions",
+      "commands": ["feroxbuster -u http://$T -x php,txt,html,bak"]
+    },
+    {
+      "id": "http.vhosts",
+      "title": "Virtual host enumeration",
+      "hint": "",
+      "commands": ["ffuf -u http://$T -H 'Host: FUZZ.$D' -w subdomains.txt -fs 0"]
+    },
+    {
+      "id": "http.tech",
+      "title": "Technology fingerprinting",
+      "hint": "",
+      "commands": ["whatweb http://$T"]
+    },
+    {
+      "id": "http.params",
+      "title": "Parameter and form discovery",
+      "hint": "Check every form, hidden field, and query string for injection points",
+      "commands": []
+    },
+    {
+      "id": "http.uploads",
+      "title": "Upload functionality",
+      "hint": "Test extension filters, content-type checks, and path traversal in filenames",
+      "commands": []
+    },
+    {
+      "id": "http.auth",
+      "title": "Authentication and session handling",
+      "hint": "Check default creds, lockout behaviour, and cookie flags",
+      "commands": []
+    }
+  ]
+}

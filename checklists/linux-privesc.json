@@ -1,0 +1,57 @@
+{
+  "id": "linux-privesc",
+  "title": "Linux Privilege Escalation",
+  "match": {
+    "hostOS": ["linux"]
+  },
+  "items": [
+    {
+      "id": "linux-privesc.sudo",
+      "title": "sudo -l and GTFOBins",
+      "hint": "",
+      "commands": ["sudo -l"]
+    },
+    {
+      "id": "linux-privesc.suid",
+      "title": "SUID/SGID binaries",
+      "hint": "",
+      "commands": ["find / -perm -4000 -type f 2>/dev/null"]
+    },
+    {
+      "id": "linux-privesc.cron",
+      "title": "Cron jobs and writable scripts",
+      "hint": "",
+      "commands": ["cat /etc/crontab", "ls -la /etc/cron.d"]
+    },
+    {
+      "id": "linux-privesc.kernel",
+      "title": "Kernel version and known exploits",
+      "hint": "",
+      "commands": ["uname -a"]
+    },
+    {
+      "id": "linux-privesc.capabilities",
+      "title": "File capabilities",
+      "hint": "",
+      "commands": ["getcap -r / 2>/dev/null"]
+    },
+    {
+      "id": "linux-privesc.writablepath",
+      "title": "Writable PATH entries and library hijacking",
+      "hint": "",
+      "commands": ["echo $PATH"]
+    },
+    {
+      "id": "linux-privesc.creds",
+      "title": "Credentials in config files and history",
+      "hint": "shell history, .bash_history, config files in home directories",
+      "commands": ["cat ~/.bash_history"]
+    },
+    {
+      "id": "linux-privesc.automated",
+      "title": "Automated enumeration",
+      "hint": "",
+      "commands": ["linpeas.sh"]
+    }
+  ]
+}
