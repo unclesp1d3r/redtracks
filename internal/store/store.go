@@ -1,3 +1,4 @@
+// Package store persists an engagement as a folder of plain files.
 package store
 
 import (
@@ -5,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -29,7 +31,9 @@ type Store struct {
 	mtimes map[string]time.Time         // mtime seen at that moment, per path
 	// failedMtimes holds the mtime of a file whose parse error was already reported.
 	failedMtimes map[string]time.Time
-	mu           sync.Mutex
+	// lastErrs holds the text of the last stat or read error reported per path.
+	lastErrs map[string]string
+	mu       sync.Mutex
 }
 
 // Open loads engagement.json, creds.json, findings.json and every
@@ -42,6 +46,7 @@ func Open(dir string) (*Store, error) {
 		mtimes: map[string]time.Time{},
 
 		failedMtimes: map[string]time.Time{},
+		lastErrs:     map[string]string{},
 	}
 	if _, err := s.Reload(); err != nil {
 		return nil, err
@@ -110,6 +115,11 @@ func (s *Store) MutateHost(ip string, fn func(*model.Host) error) error {
 
 // AddHost creates hosts/<ip>/host.json. It fails if the host already exists.
 func (s *Store) AddHost(h model.Host) error {
+	canon, err := validateIP(h.IP)
+	if err != nil {
+		return err
+	}
+	h.IP = canon
 	sp, err := s.hostSpec(h.IP)
 	if err != nil {
 		return err
@@ -129,8 +139,8 @@ func (s *Store) AddHost(h model.Host) error {
 }
 
 // Reload re-reads every file whose mtime changed and returns their paths
-// relative to the engagement dir. A file that fails to parse keeps its last
-// good in-memory copy; the error is returned after the rest are processed.
+// relative to the engagement dir. A file that fails to parse or validate
+// (an emptied host.json included) keeps its last good in-memory copy; the error is returned after the rest are processed.
 func (s *Store) Reload() ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -150,6 +160,7 @@ func (s *Store) Reload() ([]string, error) {
 	note(credsPath(s.dir), ch, err)
 	ch, err = refresh(s, s.findingsSpec())
 	note(findingsPath(s.dir), ch, err)
+	s.trackNotes(filepath.Join(s.dir, notesFile), note)
 	s.reloadHosts(note)
 	switch len(errs) {
 	case 0:
@@ -162,7 +173,8 @@ func (s *Store) Reload() ([]string, error) {
 }
 
 // reloadHosts refreshes every hosts/*/host.json.
-// ponytail: a host folder deleted while open stays in memory until restart.
+// ponytail: a host folder deleted while open stays in memory until the engagement is reopened;
+// drop hosts whose folder is gone at the end of reloadHosts if that ever bites.
 func (s *Store) reloadHosts(note func(path string, changed bool, err error)) {
 	root := filepath.Join(s.dir, hostsDir)
 	entries, err := os.ReadDir(root)
@@ -182,12 +194,31 @@ func (s *Store) reloadHosts(note func(path string, changed bool, err error)) {
 			note(filepath.Join(root, e.Name()), false, err)
 			continue
 		}
-		if _, err := os.Stat(sp.path); err != nil {
+		s.trackNotes(filepath.Join(filepath.Dir(sp.path), notesFile), note)
+		_, statErr := os.Stat(sp.path)
+		if errors.Is(statErr, fs.ErrNotExist) && s.mtimes[sp.path].IsZero() {
 			continue // a folder with only notes.md is a host with no structured state
 		}
 		ch, err := refresh(s, sp)
 		note(sp.path, ch, err)
 	}
+}
+
+// trackNotes records a notes.md mtime so an external edit shows up in the
+// changed list. The notes text itself is not held in memory.
+func (s *Store) trackNotes(path string, note func(path string, changed bool, err error)) {
+	mtime, err := statMtime(path)
+	if err != nil {
+		note(path, false, s.dedupeError(path, err))
+		return
+	}
+	delete(s.lastErrs, path)
+	known, seen := s.mtimes[path]
+	if (seen && known.Equal(mtime)) || (!seen && mtime.IsZero()) {
+		return
+	}
+	s.mtimes[path] = mtime
+	note(path, true, nil)
 }
 
 // rel returns path relative to the engagement dir, slash-separated.

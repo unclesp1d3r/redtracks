@@ -1,9 +1,9 @@
-// Package store persists an engagement as a folder of plain files.
 package store
 
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,6 +13,9 @@ import (
 // fileMode is the permission set applied to every file the store writes.
 // Engagement data is sensitive, so it is owner-only.
 const fileMode os.FileMode = 0o600
+
+// removeFile is os.Remove; tests replace it to force a cleanup failure.
+var removeFile = os.Remove
 
 // WriteAtomic replaces path with data. It writes a temp file in the same
 // directory, fsyncs, then renames over path, so readers see the old or the new
@@ -29,7 +32,9 @@ func WriteAtomic(path string, data []byte) (err error) {
 	tmpName := tmp.Name()
 	defer func() {
 		if err != nil {
-			_ = os.Remove(tmpName)
+			if rmErr := removeFile(tmpName); rmErr != nil && !errors.Is(rmErr, fs.ErrNotExist) {
+				err = errors.Join(err, fmt.Errorf("remove %s: %w", tmpName, rmErr))
+			}
 		}
 	}()
 

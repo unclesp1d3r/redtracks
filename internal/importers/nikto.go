@@ -3,9 +3,9 @@ package importers
 import (
 	"encoding/json"
 	"fmt"
-)
 
-const severityInfo = "info"
+	"github.com/unclesp1d3r/redtracks/internal/model"
+)
 
 type niktoOutput struct {
 	Host            string      `json:"host"`
@@ -31,7 +31,7 @@ func parseNikto(data []byte) (Result, error) {
 	host := HostResult{IP: out.IP}
 	for _, v := range out.Vulnerabilities {
 		host.Findings = append(host.Findings, FindingResult{
-			Title: v.Msg, Severity: severityInfo, Evidence: v.URL, Port: port,
+			Title: v.Msg, Severity: model.SeverityInfo, Evidence: v.URL, Port: port,
 		})
 	}
 	return Result{Tool: ToolNikto, Hosts: []HostResult{host}}, nil

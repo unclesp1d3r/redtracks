@@ -7,8 +7,7 @@ import (
 )
 
 var (
-	ansiEscape  = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
-	netexecRow  = regexp.MustCompile(`^(?:SMB|LDAP)\s+(\S+)\s+\d+\s+(\S+)\s+(.*)$`)
+	netexecRow  = regexp.MustCompile(`^(SMB|LDAP)\s+(\S+)\s+\d+\s+(\S+)\s+(.*)$`)
 	netexecName = regexp.MustCompile(`\(name:([^)\s]+)\)`)
 	netexecPerm = regexp.MustCompile(`^(?:READ|WRITE)(?:,(?:READ|WRITE))*$`)
 )
@@ -16,26 +15,27 @@ var (
 const (
 	netexecCredPrefix   = "[+] "
 	netexecBannerPrefix = "[*] "
-	netexecMinShareCols = 2
+	netexecProtoSMB     = "SMB"
+	netexecShareHeader  = "Share"
 )
 
 // parseNetexec reads SMB/LDAP text output, grouping rows by IP in first-seen order.
 func parseNetexec(data []byte) (Result, error) {
 	index := map[string]int{}
 	var hosts []HostResult
-	for _, line := range strings.Split(string(ansiEscape.ReplaceAll(data, nil)), "\n") {
+	for _, line := range strings.Split(string(data), "\n") {
 		m := netexecRow.FindStringSubmatch(strings.TrimRight(line, "\r"))
 		if m == nil {
 			continue
 		}
-		ip, name, rest := m[1], m[2], strings.TrimSpace(m[3])
+		proto, ip, name, rest := m[1], m[2], m[3], strings.TrimSpace(m[4])
 		i, seen := index[ip]
 		if !seen {
 			i = len(hosts)
 			index[ip] = i
 			hosts = append(hosts, HostResult{IP: ip, Hostname: name})
 		}
-		hosts[i] = applyNetexecRow(hosts[i], rest)
+		hosts[i] = applyNetexecRow(hosts[i], proto == netexecProtoSMB, rest)
 	}
 	if len(hosts) == 0 {
 		return Result{}, errors.New("no netexec SMB/LDAP result lines found")
@@ -44,7 +44,7 @@ func parseNetexec(data []byte) (Result, error) {
 }
 
 // applyNetexecRow returns h updated with whatever the row's text reveals.
-func applyNetexecRow(h HostResult, rest string) HostResult {
+func applyNetexecRow(h HostResult, isSMB bool, rest string) HostResult {
 	switch {
 	case strings.HasPrefix(rest, netexecBannerPrefix):
 		if m := netexecName.FindStringSubmatch(rest); m != nil {
@@ -57,13 +57,25 @@ func applyNetexecRow(h HostResult, rest string) HostResult {
 		if u, ok := netexecUser(strings.TrimPrefix(rest, netexecCredPrefix)); ok {
 			h.Users = append(h.Users, u)
 		}
-	case !strings.HasPrefix(rest, "["):
-		f := strings.Fields(rest)
-		if len(f) >= netexecMinShareCols && netexecPerm.MatchString(f[1]) {
-			h.Shares = append(h.Shares, ShareResult{Name: f[0], Access: f[1]})
+	case isSMB && !strings.HasPrefix(rest, "["):
+		if sh, ok := netexecShare(rest); ok {
+			h.Shares = append(h.Shares, sh)
 		}
 	}
 	return h
+}
+
+// netexecShare parses a share table row. A share whose permission column is
+// empty (the next word is part of the remark) is kept with Access "".
+func netexecShare(rest string) (ShareResult, bool) {
+	f := strings.Fields(rest)
+	if len(f) == 0 || strings.Trim(f[0], "-") == "" || f[0] == netexecShareHeader {
+		return ShareResult{}, false // blank row, "-----" rule or the table header
+	}
+	if len(f) > 1 && netexecPerm.MatchString(f[1]) {
+		return ShareResult{Name: f[0], Access: f[1]}, true
+	}
+	return ShareResult{Name: f[0]}, true
 }
 
 // netexecUser parses "domain\user:password" and discards the password.

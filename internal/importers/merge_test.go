@@ -1,10 +1,12 @@
 package importers
 
 import (
+	"errors"
 	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
@@ -44,7 +46,7 @@ func snapshot(t *testing.T, st *store.Store) map[string]string {
 	return out
 }
 
-func findRow(p Preview, kind string, badge Badge) (Row, bool) {
+func findRow(p Preview, kind RowKind, badge Badge) (Row, bool) {
 	for _, r := range p.Rows {
 		if r.Kind == kind && r.Badge == badge {
 			return r, true
@@ -53,7 +55,7 @@ func findRow(p Preview, kind string, badge Badge) (Row, bool) {
 	return Row{}, false
 }
 
-func requireRow(t *testing.T, p Preview, kind string, badge Badge) {
+func requireRow(t *testing.T, p Preview, kind RowKind, badge Badge) {
 	t.Helper()
 	if _, ok := findRow(p, kind, badge); !ok {
 		t.Errorf("no %s row with badge %s in %+v", kind, badge, p.Rows)
@@ -197,6 +199,13 @@ func counts(st *store.Store) [3]int {
 
 func TestApplyDedupesFindingsAndUsers(t *testing.T) {
 	st := openSample(t)
+	// enum4linux-ng's target is the DNS name dc01.corp.local; resolve it by hostname.
+	err := st.AddHost(
+		model.Host{ID: "dc", IP: "10.10.10.10", Hostname: "DC01.corp.local", Status: model.HostStatusUntouched},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	nuclei, err := Parse(readFixture(t, "nuclei.jsonl"))
 	if err != nil {
 		t.Fatal(err)
@@ -205,11 +214,12 @@ func TestApplyDedupesFindingsAndUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	overrides := map[string]string{ToolEnum4linuxNG: sampleIP, "app.example.test": "10.10.10.7"}
+	overrides := map[string]string{"app.example.test": "10.10.10.7"}
 	apply := func() {
 		for _, r := range []Result{nuclei, enum} {
-			if _, err := Apply(st, r, overrides, []byte("{}")); err != nil {
-				t.Fatalf("Apply %s: %v", r.Tool, err)
+			p, err := Apply(st, r, overrides, []byte("{}"))
+			if err != nil || len(p.Unresolved) != 0 {
+				t.Fatalf("Apply %s: err=%v unresolved=%+v", r.Tool, err, p.Unresolved)
 			}
 		}
 	}
@@ -217,6 +227,9 @@ func TestApplyDedupesFindingsAndUsers(t *testing.T) {
 	once := counts(st)
 	if once[0] == 0 || once[1] == 0 {
 		t.Fatalf("expected findings and users after first apply, got %v", once)
+	}
+	if h, _ := st.Engagement().Host("10.10.10.10"); h.IP == "" {
+		t.Fatal("dc host missing")
 	}
 	apply()
 	if twice := counts(st); twice != once {
@@ -226,6 +239,53 @@ func TestApplyDedupesFindingsAndUsers(t *testing.T) {
 		if f.Status != "noted" || f.Source != ToolNuclei || f.ServiceID == "" {
 			t.Errorf("finding %+v", f)
 		}
+	}
+}
+
+func TestHostnameOnlyResultUsesOverrideKeyedByHostname(t *testing.T) {
+	st := openSample(t)
+	enum, err := Parse(readFixture(t, "enum4linux-ng.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := BuildPreview(st.Engagement(), enum, nil)
+	if len(p.Unresolved) != 1 || p.Unresolved[0].Key != "dc01.corp.local" {
+		t.Fatalf("unresolved %+v, want key dc01.corp.local", p.Unresolved)
+	}
+	if _, err := Apply(st, enum, map[string]string{"dc01.corp.local": sampleIP}, []byte("{}")); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if len(st.Engagement().Creds.Users) == 0 {
+		t.Fatal("override did not place the users")
+	}
+}
+
+func TestMergeFillsServiceWithEmptyProtocol(t *testing.T) {
+	h := newHost(sampleIP)
+	h.Services = []model.Service{{ID: "s", Port: 80, Type: "http"}} // hand-edited, no protocol
+	tg := target{ip: sampleIP, port: 80, host: HostResult{WebPaths: []WebPathResult{{Path: "/x", Status: 200}}}}
+	got, _ := mergeHost(h, tg, ToolFfuf, false)
+	if len(got.Services) != 1 || len(got.Services[0].WebPaths) != 1 {
+		t.Fatalf("services = %+v, want the existing service to gain the path", got.Services)
+	}
+}
+
+func TestNucleiIPHostKeepsSchemeAndPort(t *testing.T) {
+	st := openSample(t)
+	in := `{"template-id":"x","info":{"name":"Thing","severity":"low"},"host":"https://10.10.10.5:8443"}` + "\n"
+	res, err := Parse([]byte(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Apply(st, res, nil, []byte(in)); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if s := sampleService(t, st, 8443); s.Type != "https" {
+		t.Errorf("service %+v, want https on 8443", s)
+	}
+	h, _ := st.Engagement().Host(sampleIP)
+	if serviceIndex(h.Services, 80, "tcp") < 0 || len(h.Services) != 2 {
+		t.Errorf("services %+v, want only the original 80 plus 8443", h.Services)
 	}
 }
 
@@ -258,5 +318,55 @@ func TestWriteTargetFallsBackWhenHostExists(t *testing.T) {
 	}
 	if serviceIndex(h.Services, 8443, "tcp") < 0 || serviceIndex(h.Services, 80, "tcp") < 0 {
 		t.Fatalf("services = %+v, want merged 80 and 8443", h.Services)
+	}
+}
+
+func TestPreviewCarriesDroppedAndSkipped(t *testing.T) {
+	st := openSample(t)
+	res := Result{Tool: ToolNmap, Dropped: 1, DroppedIPs: []string{"bogus"}, Skipped: 3}
+	p := BuildPreview(st.Engagement(), res, nil)
+	if len(p.Dropped) != 1 || p.Dropped[0] != "bogus" || p.Skipped != 3 {
+		t.Fatalf("Dropped=%v Skipped=%d", p.Dropped, p.Skipped)
+	}
+	if empty := BuildPreview(st.Engagement(), Result{Tool: ToolNmap}, nil); empty.Dropped == nil {
+		t.Fatal("Dropped should be an empty slice, not nil, so it serialises as []")
+	}
+}
+
+func TestApplyMidImportFailureReportsProgress(t *testing.T) {
+	st := openSample(t)
+	badHost := filepath.Join(st.Engagement().Dir, "hosts", "10.10.10.9", "host.json")
+	if err := os.MkdirAll(filepath.Dir(badHost), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(badHost, []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	res := Result{Tool: ToolNmap, Hosts: []HostResult{
+		{IP: sampleIP, Services: []ServiceResult{{Port: 22, Protocol: "tcp"}}},
+		{IP: "10.10.10.9", Services: []ServiceResult{{Port: 22, Protocol: "tcp"}}},
+	}}
+	_, err := Apply(st, res, nil, []byte("raw"))
+	if err == nil {
+		t.Fatal("expected a failure on the corrupt host")
+	}
+	if sampleService(t, st, 22).Port != 22 {
+		t.Error("host A was not written")
+	}
+	if got, rerr := os.ReadFile(badHost); rerr != nil || string(got) != "{" {
+		t.Errorf("corrupt host B was touched: %q %v", got, rerr)
+	}
+	raws, gerr := filepath.Glob(filepath.Join(st.Engagement().Dir, "hosts", "*", "imports", "*"))
+	if gerr != nil || len(raws) != 0 {
+		t.Errorf("raw files %v saved after a partial failure (err %v)", raws, gerr)
+	}
+	var pe *store.ParseError
+	if !errors.As(err, &pe) {
+		t.Errorf("err = %v, want the parse error to be wrapped", err)
+	}
+	for _, want := range []string{"10.10.10.9", "after writing 1 of 2", "retries safely"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q lacks %q", err, want)
+		}
 	}
 }

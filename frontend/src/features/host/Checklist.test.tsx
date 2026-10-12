@@ -7,20 +7,20 @@ vi.mock("@/lib/api", async () => {
 });
 
 import { ItemStatus } from "@/lib/api";
-import type { ChecklistView } from "@/lib/api";
+import type { ChecklistView, ItemView } from "@/lib/api";
 import { Checklist } from "./Checklist";
 
-function views(status: ItemStatus): ChecklistView[] {
-  const item = (id: string, s: ItemStatus) => ({
+function views(status: ItemStatus, noteOfB = ""): ChecklistView[] {
+  const item = (id: string, s: ItemStatus, note = ""): ItemView => ({
     id, title: `Item ${id}`, hint: "", commands: [],
-    State: { status: s, note: "", updatedAt: "" },
+    State: { status: s, note, updatedAt: "" },
   });
   return [
     {
-      Definition: { id: "d", title: "Def", match: { serviceTypes: [], hostOnly: false }, items: [], file: "" },
-      Items: [item("a", ItemStatus.ItemTodo), item("b", status), item("c", ItemStatus.ItemTodo)],
+      Definition: { id: "d", title: "Def", match: { serviceTypes: [], hostOS: [] }, items: [] },
+      Items: [item("a", ItemStatus.ItemTodo), item("b", status, noteOfB), item("c", ItemStatus.ItemTodo)],
     },
-  ] as unknown as ChecklistView[];
+  ];
 }
 
 describe("Checklist", () => {
@@ -44,5 +44,20 @@ describe("Checklist", () => {
     note.focus();
     fireEvent.keyDown(note, { key: " " });
     expect(onSet).not.toHaveBeenCalled();
+  });
+
+  it("follows an external note change but keeps text the user is typing", () => {
+    const props = { onSet: vi.fn(), targetIp: "10.0.0.1", domain: "" };
+    const { rerender } = render(<Checklist views={views(ItemStatus.ItemTodo, "old")} {...props} />);
+    fireEvent.click(screen.getByLabelText("Expand Item b"));
+    const note = screen.getByLabelText("Note for Item b") as HTMLTextAreaElement;
+    expect(note.value).toBe("old");
+
+    rerender(<Checklist views={views(ItemStatus.ItemTodo, "edited on disk")} {...props} />);
+    expect(note.value).toBe("edited on disk");
+
+    fireEvent.change(note, { target: { value: "typing" } });
+    rerender(<Checklist views={views(ItemStatus.ItemTodo, "edited again")} {...props} />);
+    expect(note.value).toBe("typing");
   });
 });

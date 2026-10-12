@@ -163,6 +163,7 @@ func TestBoardOrder(t *testing.T) {
 			{ID: "zeroB", IP: "10.0.0.2", Services: svc(done)},
 			{ID: "ten", IP: "10.0.0.8", Flags: captured("x")},
 			{ID: "zeroA", IP: "10.0.0.1", Services: svc(model.ChecklistState{})},
+			{ID: "bare", IP: "10.0.0.0"}, // no services: nothing to do, so it sorts after hosts with open items
 		},
 	}
 
@@ -172,8 +173,22 @@ func TestBoardOrder(t *testing.T) {
 	for i, s := range got {
 		ids[i] = s.HostID
 	}
-	if want := []string{"zeroA", "zeroB", "ten", "twenty"}; !slices.Equal(ids, want) {
+	if want := []string{"zeroA", "zeroB", "bare", "ten", "twenty"}; !slices.Equal(ids, want) {
 		t.Fatalf("order = %v, want %v", ids, want)
+	}
+}
+
+func TestBoardOrderNoFlagTypesSortsItemlessHostsLast(t *testing.T) {
+	open := []model.Service{{ID: "s", Type: "http"}}
+	eng := model.Engagement{Hosts: []model.Host{
+		{ID: "bare", IP: "10.0.0.1"},
+		{ID: "open", IP: "10.0.0.2", Services: open},
+	}}
+
+	got := progress.Summarize(eng, []checklist.Definition{httpDef()})
+
+	if got[0].HostID != "open" || got[1].HostID != "bare" {
+		t.Fatalf("order = %s, %s; want open, bare", got[0].HostID, got[1].HostID)
 	}
 }
 
@@ -196,5 +211,37 @@ func TestSummarizeDoesNotMutateInput(t *testing.T) {
 
 	if eng.Hosts[0].ID != "b" {
 		t.Fatal("Summarize reordered the caller's hosts")
+	}
+}
+
+// Skipped and NA items stay in the total but are neither open nor done, so a
+// host that skips everything has a 0 done ratio and sorts ahead of hosts with progress.
+func TestSkippedAndNAItemsCountOnlyInTotal(t *testing.T) {
+	svc := func(id string, items map[string]model.ItemState) model.Service {
+		return model.Service{ID: id, Type: "http", Checklist: model.ChecklistState{Items: items}}
+	}
+	eng := model.Engagement{Hosts: []model.Host{
+		{ID: "done", IP: "10.0.0.1", Services: []model.Service{svc("s1", map[string]model.ItemState{
+			"http-1": {Status: model.ItemDone}, "http-2": {Status: model.ItemDone},
+		})}},
+		{ID: "half", IP: "10.0.0.2", Services: []model.Service{svc("s2", map[string]model.ItemState{
+			"http-1": {Status: model.ItemDone}, "http-2": {Status: model.ItemTodo},
+		})}},
+		{ID: "skipped", IP: "10.0.0.3", Services: []model.Service{svc("s3", map[string]model.ItemState{
+			"http-1": {Status: model.ItemSkipped}, "http-2": {Status: model.ItemNA},
+		})}},
+	}}
+
+	got := progress.Summarize(eng, []checklist.Definition{httpDef()})
+
+	skipped := summaryFor(t, got, "skipped")
+	if skipped.OpenItems != 0 || skipped.ItemsDone != 0 || skipped.ItemsTotal != 2 {
+		t.Fatalf("open/done/total = %d/%d/%d, want 0/0/2", skipped.OpenItems, skipped.ItemsDone, skipped.ItemsTotal)
+	}
+	if len(skipped.UntouchedServices) != 0 {
+		t.Fatalf("UntouchedServices = %v, want none: skipped items are not todo", skipped.UntouchedServices)
+	}
+	if got[0].HostID != "skipped" || got[1].HostID != "half" || got[2].HostID != "done" {
+		t.Fatalf("order = %s, %s, %s; want skipped, half, done", got[0].HostID, got[1].HostID, got[2].HostID)
 	}
 }

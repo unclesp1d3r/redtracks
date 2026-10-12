@@ -182,6 +182,12 @@ func TestHostNormalizeFillsNilCollections(t *testing.T) {
 	check(t, !strings.Contains(s, "null"), s)
 }
 
+func TestHostNormalizeDefaultsServiceProtocol(t *testing.T) {
+	got := model.Host{Services: []model.Service{{Port: 80}, {Port: 53, Protocol: "udp"}}}.Normalize()
+	eq(t, "tcp", got.Services[0].Protocol)
+	eq(t, "udp", got.Services[1].Protocol)
+}
+
 func TestHostNormalizeDoesNotMutateReceiver(t *testing.T) {
 	h := model.Host{Services: []model.Service{{}}}
 	_ = h.Normalize()
@@ -219,4 +225,22 @@ func TestLookupHelpers(t *testing.T) {
 func TestServiceLabel(t *testing.T) {
 	eq(t, "80/tcp http", model.Service{Port: 80, Protocol: "tcp", Type: "http"}.Label())
 	eq(t, "22/tcp", model.Service{Port: 22, Protocol: "tcp"}.Label())
+}
+
+func TestEnumValidators(t *testing.T) {
+	check(t, model.EngagementOSCP.IsValid())
+	check(t, !model.EngagementType("").IsValid() && !model.EngagementType("x").IsValid())
+	check(t, model.HostStatusRoot.IsValid())
+	check(t, !model.HostStatus("").IsValid() && !model.HostStatus("pwned").IsValid())
+	check(t, model.ItemNA.IsValid())
+	check(t, !model.ItemStatus("").IsValid() && !model.ItemStatus("maybe").IsValid())
+}
+
+func TestHostByID(t *testing.T) {
+	e := model.Engagement{Hosts: []model.Host{{ID: "h1", IP: "10.0.0.1"}}}
+	got, found := e.HostByID("h1")
+	check(t, found)
+	eq(t, "10.0.0.1", got.IP)
+	_, found = e.HostByID("h2")
+	check(t, !found)
 }

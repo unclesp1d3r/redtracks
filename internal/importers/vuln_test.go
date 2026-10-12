@@ -35,7 +35,7 @@ func TestParseNuclei(t *testing.T) {
 		t.Fatalf("tool=%q hosts=%d, want nuclei and 2", res.Tool, len(res.Hosts))
 	}
 	ip := res.Hosts[0]
-	if ip.IP != "10.10.10.5" || ip.URL != "" || len(ip.Findings) != 2 {
+	if ip.IP != "10.10.10.5" || ip.URL != "http://10.10.10.5" || len(ip.Findings) != 2 {
 		t.Fatalf("ip host %+v", ip)
 	}
 	want := FindingResult{

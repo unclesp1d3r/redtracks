@@ -14,11 +14,11 @@ type feroxLine struct {
 	ContentLength int    `json:"content_length"`
 }
 
-// parseFeroxbuster reads JSONL, keeping only "response" lines. The host URL
-// comes from the first response.
+// parseFeroxbuster reads JSONL, keeping only "response" lines and grouping
+// them by web base, in first-seen order.
 func parseFeroxbuster(data []byte) (Result, error) {
-	var host HostResult
-	found := false
+	index := map[string]int{}
+	var hosts []HostResult
 	for n, raw := range bytes.Split(data, []byte("\n")) {
 		if len(bytes.TrimSpace(raw)) == 0 {
 			continue
@@ -34,16 +34,20 @@ func parseFeroxbuster(data []byte) (Result, error) {
 		if err != nil {
 			return Result{}, fmt.Errorf("feroxbuster line %d: %w", n+1, err)
 		}
-		if !found {
-			if host, err = webBase(l.URL); err != nil {
-				return Result{}, fmt.Errorf("feroxbuster line %d: %w", n+1, err)
-			}
-			found = true
+		base, err := webBase(l.URL)
+		if err != nil {
+			return Result{}, fmt.Errorf("feroxbuster line %d: %w", n+1, err)
 		}
-		host.WebPaths = append(host.WebPaths, WebPathResult{Path: u.Path, Status: l.Status, Size: l.ContentLength})
+		i, seen := index[base.URL]
+		if !seen {
+			i = len(hosts)
+			index[base.URL] = i
+			hosts = append(hosts, base)
+		}
+		hosts[i].WebPaths = append(
+			hosts[i].WebPaths,
+			WebPathResult{Path: u.Path, Status: l.Status, Size: l.ContentLength},
+		)
 	}
-	if !found {
-		return Result{Tool: ToolFeroxbuster}, nil
-	}
-	return Result{Tool: ToolFeroxbuster, Hosts: []HostResult{host}}, nil
+	return Result{Tool: ToolFeroxbuster, Hosts: hosts}, nil
 }

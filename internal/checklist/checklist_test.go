@@ -2,6 +2,7 @@ package checklist_test
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -262,6 +263,16 @@ func waitForCount(
 	}
 }
 
+// shippedCount is the number of definitions embedded in checklists.FS.
+func shippedCount(t *testing.T) int {
+	t.Helper()
+	files, err := fs.Glob(checklists.FS, "*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(files)
+}
+
 func TestInstallDefaultsOnlyOnce(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "checklists")
 
@@ -287,8 +298,8 @@ func TestInstallDefaultsOnlyOnce(t *testing.T) {
 			jsonCount++
 		}
 	}
-	if jsonCount != 10 {
-		t.Fatalf("got %d json files, want 10", jsonCount)
+	if want := shippedCount(t); jsonCount != want {
+		t.Fatalf("got %d json files, want %d", jsonCount, want)
 	}
 	if !hasReadme {
 		t.Fatal("missing _readme.md")
@@ -325,8 +336,8 @@ func TestShippedSetLoads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadDefinitions: %v", err)
 	}
-	if len(defs) != 10 {
-		t.Fatalf("got %d definitions, want 10", len(defs))
+	if want := shippedCount(t); len(defs) != want {
+		t.Fatalf("got %d definitions, want %d", len(defs), want)
 	}
 
 	ids := make([]string, 0, len(defs))
@@ -351,5 +362,79 @@ func TestShippedSetLoads(t *testing.T) {
 	sort.Strings(want)
 	if strings.Join(ids, ",") != strings.Join(want, ",") {
 		t.Fatalf("got ids %v, want %v", ids, want)
+	}
+}
+
+func TestLoadDefinitionsRejectsBadDefinitions(t *testing.T) {
+	cases := map[string]struct {
+		files map[string]string
+		want  string
+	}{
+		"empty definition id": {
+			map[string]string{"x.json": `{"id":"","match":{"serviceTypes":["a"]},"items":[]}`}, "x.json",
+		},
+		"duplicate definition id": {
+			map[string]string{
+				"a.json": `{"id":"d","match":{"serviceTypes":["a"]},"items":[]}`,
+				"b.json": `{"id":"d","match":{"serviceTypes":["b"]},"items":[]}`,
+			}, "b.json",
+		},
+		"empty item id": {
+			map[string]string{
+				"x.json": `{"id":"x","match":{"hostOS":["linux"]},"items":[{"id":"","title":"t"}]}`,
+			}, "x.json",
+		},
+		"empty match": {
+			map[string]string{"x.json": `{"id":"x","match":{"serviceTypes":[],"hostOS":[]},"items":[]}`}, "x.json",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			for f, c := range tc.files {
+				writeFile(t, dir, f, c)
+			}
+			_, err := checklist.LoadDefinitions(dir)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v, want one naming %s", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestForServiceIsCaseInsensitive(t *testing.T) {
+	defs := []checklist.Definition{{ID: "http", Match: checklist.Match{ServiceTypes: []string{"HTTP"}}}}
+	if got := checklist.ForService(defs, model.Service{Type: "http"}); len(got) != 1 {
+		t.Fatalf("matched %v, want http", got)
+	}
+}
+
+func TestSubstituteRequiresDomainForDollarD(t *testing.T) {
+	if _, err := checklist.Substitute("kerbrute -d $D $T", "10.0.0.1", ""); err == nil {
+		t.Fatal("expected an error for $D without a domain")
+	}
+	if got, err := checklist.Substitute("nmap $T", "10.0.0.1", ""); err != nil || got != "nmap 10.0.0.1" {
+		t.Fatalf("got %q, %v", got, err)
+	}
+}
+
+func TestInstallDefaultsClearsStaleTmpAndLeavesNoTmp(t *testing.T) {
+	root := t.TempDir()
+	dst := filepath.Join(root, "checklists")
+	stale := dst + ".tmp"
+	if err := os.MkdirAll(stale, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, stale, "leftover.json", "{}")
+
+	installed, err := checklist.InstallDefaults(checklists.FS, dst)
+	if err != nil || !installed {
+		t.Fatalf("InstallDefaults = %v, %v", installed, err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("staging dir still present: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "leftover.json")); !os.IsNotExist(err) {
+		t.Fatal("stale file leaked into the installed set")
 	}
 }

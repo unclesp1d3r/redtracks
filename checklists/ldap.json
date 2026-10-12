@@ -20,8 +20,8 @@
     {
       "id": "ldap.users",
       "title": "User and group enumeration",
-      "hint": "",
-      "commands": ["ldapsearch -x -H ldap://$T -b 'dc=$D' '(objectClass=user)'"]
+      "hint": "Searches the default naming context. To target a base DN explicitly, add -b 'DC=corp,DC=local' (the domain split into DC= components).",
+      "commands": ["ldapsearch -x -H ldap://$T '(objectClass=user)'"]
     },
     {
       "id": "ldap.asreproast",

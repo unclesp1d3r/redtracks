@@ -57,26 +57,35 @@ func (s *Store) ReadNotes(ip string) (string, string, error) {
 	return string(data), hashHex(data), nil
 }
 
-// WriteNotes replaces the notes only if the file still hashes to baseHash;
+// WriteNotes replaces the notes only if the file still hashes to baseHash and
+// returns the hash of what it wrote, the baseHash for the next save;
 // otherwise it returns an error wrapping ErrConflict.
-func (s *Store) WriteNotes(ip, text, baseHash string) error {
+func (s *Store) WriteNotes(ip, text, baseHash string) (string, error) {
 	path, err := notesPath(s.dir, ip)
 	if err != nil {
-		return err
+		return "", err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	current, err := readOptional(path)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if hashHex(current) != baseHash {
-		return fmt.Errorf("%w: %s changed on disk", ErrConflict, path)
+		return "", fmt.Errorf("%w: %s changed on disk", ErrConflict, path)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), dirMode); err != nil {
-		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
+		return "", fmt.Errorf("create %s: %w", filepath.Dir(path), err)
 	}
-	return WriteAtomic(path, []byte(text))
+	data := []byte(text)
+	if err := WriteAtomic(path, data); err != nil {
+		return "", err
+	}
+	// Our own write must not show up as an external change on the next Reload.
+	if mtime, err := statMtime(path); err == nil {
+		s.mtimes[path] = mtime
+	}
+	return hashHex(data), nil
 }
 
 func importExt(raw []byte) string {

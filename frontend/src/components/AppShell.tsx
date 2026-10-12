@@ -1,12 +1,13 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeftIcon, TriangleAlertIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AddHostDialog } from "@/features/board/AddHostDialog";
 import { useErrorBanner } from "@/lib/errorBanner";
-import { useEngagementQuery } from "@/lib/query";
+import { EngagementService } from "@/lib/api";
+import { keys, useEngagementQuery } from "@/lib/query";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./CommandPalette";
 
@@ -17,12 +18,11 @@ const NAV = [
   { label: "What's left", to: "/left" },
 ];
 
-const ROOT_LABEL = "~/RedTracks";
-
 export function AppShell() {
   const [addingHost, setAddingHost] = useState(false);
   const banner = useErrorBanner();
   const engagement = useEngagementQuery();
+  const root = useQuery({ queryKey: keys.root(), queryFn: () => EngagementService.Root(), staleTime: Infinity });
 
   return (
     <TooltipProvider>
@@ -52,22 +52,30 @@ export function AppShell() {
           </p>
         </nav>
         <main className="overflow-auto p-6">
-          {banner && (
+          {banner.length > 0 && (
             <Alert variant="destructive" className="mb-4">
               <TriangleAlertIcon />
-              <AlertTitle>Could not read a file on disk</AlertTitle>
-              <AlertDescription className="font-mono text-xs whitespace-pre-wrap">{banner}</AlertDescription>
+              <AlertTitle>Could not read {banner.length === 1 ? "a file" : `${banner.length} files`} on disk</AlertTitle>
+              <AlertDescription>
+                <ul className="space-y-1 font-mono text-xs whitespace-pre-wrap">
+                  {banner.map((e) => (
+                    <li key={`${e.Kind}:${e.Path}`}>
+                      {e.Path ? <strong>{e.Path}: </strong> : <strong>{e.Kind}: </strong>}
+                      {e.Message}
+                    </li>
+                  ))}
+                </ul>
+              </AlertDescription>
             </Alert>
           )}
           <Outlet />
         </main>
         <footer className="col-span-2 border-t border-border px-3 py-1 font-mono text-xs text-muted-foreground">
-          root: {ROOT_LABEL}
+          root: {root.data ?? "..."}
         </footer>
       </div>
       <CommandPalette onAddHost={() => setAddingHost(true)} />
       <AddHostDialog open={addingHost} onOpenChange={setAddingHost} />
-      <Toaster />
     </TooltipProvider>
   );
 }

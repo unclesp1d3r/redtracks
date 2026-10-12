@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import DOMPurify from "dompurify";
+import { DiagnosticsService } from "@/lib/api";
 
 type MermaidApi = (typeof import("mermaid"))["default"];
 
@@ -8,7 +9,8 @@ let mermaidReady: Promise<MermaidApi> | undefined;
 
 function loadMermaid(): Promise<MermaidApi> {
   mermaidReady ??= import("mermaid").then(({ default: mermaid }) => {
-    // SVG text labels (not HTML in <foreignObject>) so the SVG-only sanitiser keeps them.
+    // DOMPurify's svg profile drops <foreignObject>, which is where Mermaid's default HTML
+    // labels live, so force SVG <text> labels or every node renders blank.
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "strict",
@@ -37,7 +39,10 @@ export function Mermaid({ text }: { text: string }) {
         setResult({ svg: clean });
       })
       .catch((e: unknown) => {
-        if (!cancelled) setResult({ error: e instanceof Error ? e.message : String(e) });
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : String(e);
+        setResult({ error: message });
+        DiagnosticsService.LogError("Mermaid", message).catch((err: unknown) => console.error("LogError failed:", err));
       });
     return () => {
       cancelled = true;
@@ -48,6 +53,9 @@ export function Mermaid({ text }: { text: string }) {
     return (
       <div>
         <p className="mb-1 text-xs text-muted-foreground">Diagram failed to render.</p>
+        <p role="alert" className="mb-1 font-mono text-xs whitespace-pre-wrap text-destructive">
+          {result.error}
+        </p>
         <pre className="overflow-auto rounded-md bg-muted p-2 text-xs">{text}</pre>
       </div>
     );

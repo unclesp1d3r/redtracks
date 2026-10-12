@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/base64"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/unclesp1d3r/redtracks/checklists"
 	"github.com/unclesp1d3r/redtracks/internal/model"
 	"github.com/unclesp1d3r/redtracks/internal/progress"
 	"github.com/unclesp1d3r/redtracks/internal/store"
@@ -115,10 +117,10 @@ func TestImportPreviewThenApply(t *testing.T) {
 	s := NewImportService(a)
 
 	resp, err := s.PreviewData("nmap.xml", base64.StdEncoding.EncodeToString(raw))
-	if err != nil || resp.Token == "" {
+	if err != nil || resp.Token == "" || len(resp.Preview.Rows) == 0 {
 		t.Fatalf("preview: %v %+v", err, resp)
 	}
-	if _, err := s.Apply(resp.Token, nil); err != nil {
+	if _, err := s.Apply(resp.Token, map[string]string{"unused.example": "10.0.0.1"}); err != nil {
 		t.Fatal(err)
 	}
 	cur := current(t, a)
@@ -206,7 +208,7 @@ func TestOpenRejectsOutsideEngagements(t *testing.T) {
 func TestWriteNotesConflictMessage(t *testing.T) {
 	a := openSample(t).app
 	e := NewEngagementService(a)
-	err := e.WriteNotes(sampleHost, "x", "stale-hash")
+	_, err := e.WriteNotes(sampleHost, "x", "stale-hash")
 	if err == nil || !strings.HasPrefix(err.Error(), "conflict") {
 		t.Fatalf("got %v", err)
 	}
@@ -222,6 +224,16 @@ func TestStoreErrorsWithoutEngagement(t *testing.T) {
 	}
 }
 
+// shippedCount is the number of definitions embedded in checklists.FS.
+func shippedCount(t *testing.T) int {
+	t.Helper()
+	files, err := fs.Glob(checklists.FS, "*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(files)
+}
+
 func TestNewInstallsDefaults(t *testing.T) {
 	root := t.TempDir()
 	a, err := New(root)
@@ -233,11 +245,12 @@ func TestNewInstallsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 10 {
-		t.Fatalf("installed %d definition files", len(files))
+	want := shippedCount(t)
+	if len(files) != want {
+		t.Fatalf("installed %d definition files, want %d", len(files), want)
 	}
-	if len(a.Definitions()) != 10 {
-		t.Fatalf("loaded %d definitions", len(a.Definitions()))
+	if len(a.Definitions()) != want {
+		t.Fatalf("loaded %d definitions, want %d", len(a.Definitions()), want)
 	}
 }
 

@@ -45,6 +45,9 @@ func parseFfuf(data []byte) (Result, error) {
 	if out.Config.URL == "" {
 		return Result{}, errors.New("ffuf output has no config.url")
 	}
+	if cfg, err := url.Parse(out.Config.URL); err == nil && strings.Contains(cfg.Host, "FUZZ") {
+		return Result{}, errors.New("vhost fuzzing is not supported (FUZZ in the URL host)")
+	}
 	host, err := webBase(strings.ReplaceAll(out.Config.URL, "FUZZ", ""))
 	if err != nil {
 		return Result{}, err

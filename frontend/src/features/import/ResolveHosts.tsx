@@ -10,7 +10,7 @@ export type Choices = Record<string, Choice>;
 
 const MAX_PORT = 65535;
 
-function validPort(port: string): boolean {
+export function validPort(port: string): boolean {
   const n = Number(port);
   return Number.isInteger(n) && n >= 1 && n <= MAX_PORT;
 }
@@ -47,7 +47,7 @@ export function ResolveHosts({ unresolved, hostIps, choices, onChange }: Props) 
         const bad = !!c?.port && !validPort(c.port);
         return (
           <li key={u.Key} className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm">
-            <span className="min-w-40 font-mono">{u.URL || u.Hostname}</span>
+            <span className="min-w-40 font-mono">{u.URL || u.Hostname || u.Key}</span>
             <Select value={c?.ip ?? ""} onValueChange={(v) => set(u.Key, { ip: v ?? "" })}>
               <SelectTrigger aria-label={`Host for ${u.Key}`} className="w-48">
                 <SelectValue placeholder="Choose host" />

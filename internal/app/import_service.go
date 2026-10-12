@@ -4,8 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
-	"os"
+	"slices"
 	"sync"
 
 	"github.com/unclesp1d3r/redtracks/internal/importers"
@@ -17,6 +16,8 @@ import (
 const (
 	maxImportMB    = 20
 	maxImportBytes = maxImportMB << 20
+	// maxPendingImports bounds the previews held in memory; the oldest is evicted first.
+	maxPendingImports = 8
 )
 
 var errUnknownToken = errors.New("unknown token")
@@ -31,39 +32,27 @@ type ImportService struct {
 	app     *App
 	mu      sync.Mutex
 	pending map[string]pendingImport
+	order   []string // pending tokens, oldest first
 }
 
 // NewImportService returns the import service bound to a.
 func NewImportService(a *App) *ImportService {
-	return &ImportService{app: a, pending: map[string]pendingImport{}}
+	s := &ImportService{app: a, pending: map[string]pendingImport{}}
+	// A preview was computed against one engagement and must not be applied to another.
+	a.onEngagementOpened(s.clear)
+	return s
+}
+
+func (s *ImportService) clear() {
+	s.mu.Lock()
+	s.pending, s.order = map[string]pendingImport{}, nil
+	s.mu.Unlock()
 }
 
 // PreviewResponse is a parsed import awaiting Apply or Discard.
 type PreviewResponse struct {
 	Token   string
 	Preview importers.Preview
-}
-
-// PreviewFile reads and previews the file at path.
-func (s *ImportService) PreviewFile(path string) (PreviewResponse, error) {
-	resp, err := s.previewFile(path)
-	return resp, s.app.fail("ImportService.PreviewFile", err)
-}
-
-func (s *ImportService) previewFile(path string) (PreviewResponse, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return PreviewResponse{}, fmt.Errorf("open %s: %w", path, err)
-	}
-	defer func() { _ = f.Close() }()
-	raw, err := io.ReadAll(io.LimitReader(f, maxImportBytes+1))
-	if err != nil {
-		return PreviewResponse{}, fmt.Errorf("read %s: %w", path, err)
-	}
-	if len(raw) > maxImportBytes {
-		return PreviewResponse{}, fmt.Errorf("%s is larger than %d MB", path, maxImportMB)
-	}
-	return s.preview(raw)
 }
 
 // PreviewData previews standard-base64 file contents (drag and drop).
@@ -98,6 +87,11 @@ func (s *ImportService) preview(raw []byte) (PreviewResponse, error) {
 	token := model.NewID()
 	s.mu.Lock()
 	s.pending[token] = pendingImport{result: res, raw: raw}
+	s.order = append(s.order, token)
+	for len(s.order) > maxPendingImports {
+		delete(s.pending, s.order[0])
+		s.order = s.order[1:]
+	}
 	s.mu.Unlock()
 	return PreviewResponse{Token: token, Preview: importers.BuildPreview(st.Engagement(), res, nil)}, nil
 }
@@ -139,5 +133,6 @@ func (s *ImportService) lookup(token string) (pendingImport, bool) {
 func (s *ImportService) drop(token string) {
 	s.mu.Lock()
 	delete(s.pending, token)
+	s.order = slices.DeleteFunc(s.order, func(t string) bool { return t == token })
 	s.mu.Unlock()
 }

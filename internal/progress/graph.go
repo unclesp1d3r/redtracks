@@ -43,17 +43,14 @@ func AttackGraph(eng model.Engagement) string {
 	sb.WriteString("flowchart LR\n")
 	sb.WriteString("  " + attackerNode + "[" + quote(attackerNode) + "]\n")
 
-	nodeByHostID := make(map[string]string, len(eng.Hosts))
 	for _, h := range eng.Hosts {
-		id := nodeID(h.IP)
-		nodeByHostID[h.ID] = id
-		sb.WriteString("  " + id + "[" + quote(hostLabel(h)) + "]\n")
+		sb.WriteString("  " + nodeID(h.IP) + "[" + quote(hostLabel(h)) + "]\n")
 	}
 	for _, h := range eng.Hosts {
 		for _, p := range h.AccessPaths {
-			from, ok := nodeByHostID[p.ViaHostID]
-			if !ok {
-				from = attackerNode
+			from := attackerNode
+			if via, ok := eng.HostByID(p.ViaHostID); ok && p.ViaHostID != "" {
+				from = nodeID(via.IP)
 			}
 			sb.WriteString("  " + from + edge(p.Method) + nodeID(h.IP) + "\n")
 		}

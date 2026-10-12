@@ -24,14 +24,28 @@ type Notes struct {
 	Hash string
 }
 
-// List returns the engagements under the root, newest first.
-func (s *EngagementService) List() ([]store.Summary, error) {
-	out, err := store.ListEngagements(s.app.Root)
-	return out, s.app.fail("EngagementService.List", err)
+// ListResponse is the engagement picker's data: the engagements that loaded
+// and the folders that did not.
+type ListResponse struct {
+	Engagements []store.Summary
+	Broken      []store.BrokenEngagement
 }
+
+// List returns the engagements under the root, newest first, plus the folders
+// that could not be read.
+func (s *EngagementService) List() (ListResponse, error) {
+	sums, broken, err := store.ListEngagementsDetailed(s.app.Root)
+	return ListResponse{Engagements: sums, Broken: broken}, s.app.fail("EngagementService.List", err)
+}
+
+// Root returns the folder that holds the engagements and checklists.
+func (s *EngagementService) Root() string { return s.app.Root }
 
 // Create makes a new engagement folder and returns its path.
 func (s *EngagementService) Create(name, domain string, t model.EngagementType) (string, error) {
+	if !t.IsValid() {
+		return "", s.app.fail("EngagementService.Create", fmt.Errorf("invalid engagement type %q", t))
+	}
 	dir, err := store.CreateEngagement(s.app.Root, name, domain, t)
 	return dir, s.app.fail("EngagementService.Create", err)
 }
@@ -59,11 +73,12 @@ func (s *EngagementService) open(dir string) (model.Engagement, error) {
 	}
 	a.store, a.cancelPoll = st, cancel
 	a.mu.Unlock()
+	a.notifyOpened()
 	go st.Poll(ctx, pollInterval,
 		func(changed []string) { a.emitEvent(eventChanged, changed) },
 		func(err error) {
 			a.log.Error("poll engagement", "err", err)
-			a.emitEvent(eventError, err.Error())
+			a.emitError(errorKindEngagement, clean, err)
 		})
 	return st.Engagement(), nil
 }
@@ -95,7 +110,7 @@ func (s *EngagementService) AttackGraph() (string, error) {
 	return progress.AttackGraph(st.Engagement()), nil
 }
 
-// ReadNotes returns a host's notes and their hash.
+// ReadNotes returns a host's notes (the engagement's when ip is empty) and their hash.
 func (s *EngagementService) ReadNotes(ip string) (Notes, error) {
 	var n Notes
 	err := s.app.withStore("EngagementService.ReadNotes", func(st *store.Store) error {
@@ -106,11 +121,16 @@ func (s *EngagementService) ReadNotes(ip string) (Notes, error) {
 	return n, err
 }
 
-// WriteNotes saves a host's notes; a stale baseHash fails with a "conflict" error.
-func (s *EngagementService) WriteNotes(ip, text, baseHash string) error {
-	return s.app.withStore("EngagementService.WriteNotes", func(st *store.Store) error {
-		return st.WriteNotes(ip, text, baseHash)
+// WriteNotes saves a host's notes (the engagement's when ip is empty) and returns the new hash to pass to the next
+// save; a stale baseHash fails with a "conflict" error.
+func (s *EngagementService) WriteNotes(ip, text, baseHash string) (string, error) {
+	var hash string
+	err := s.app.withStore("EngagementService.WriteNotes", func(st *store.Store) error {
+		var werr error
+		hash, werr = st.WriteNotes(ip, text, baseHash)
+		return werr
 	})
+	return hash, err
 }
 
 // MarkTried records that a credential was tried on the host with the given IP (stored by host ID), and that it works when works is set.

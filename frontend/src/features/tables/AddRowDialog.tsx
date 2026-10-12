@@ -142,7 +142,7 @@ export function AddRowDialog({ kind, row, hosts, open, onOpenChange }: Props) {
 
   const save = useMutation({
     mutationFn: () => {
-      // Edit merges over the original so fields not in the form (worksOn, triedOn) survive.
+      // Edit merges over the original so id and any fields not in the form survive.
       const payload = { ...(row ?? { id: "" }), ...draft };
       return ROW_API[kind][isEdit ? "update" : "add"](payload as never);
     },

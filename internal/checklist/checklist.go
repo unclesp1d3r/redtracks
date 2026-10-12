@@ -64,12 +64,20 @@ func LoadDefinitions(dir string) ([]Definition, error) {
 
 	defs := make([]Definition, 0, len(paths))
 	seen := make(map[string]string, len(paths))
+	defFiles := make(map[string]string, len(paths))
 	for _, path := range paths {
 		def, err := loadOne(path)
 		if err != nil {
 			return nil, err
 		}
 		base := filepath.Base(path)
+		if err := validateDefinition(def, base); err != nil {
+			return nil, err
+		}
+		if prior, ok := defFiles[def.ID]; ok {
+			return nil, fmt.Errorf("duplicate definition id %q in %s and %s", def.ID, prior, base)
+		}
+		defFiles[def.ID] = base
 		for _, item := range def.Items {
 			if prior, ok := seen[item.ID]; ok {
 				return nil, fmt.Errorf("duplicate item id %q in %s and %s", item.ID, prior, base)
@@ -79,6 +87,23 @@ func LoadDefinitions(dir string) ([]Definition, error) {
 		defs = append(defs, def)
 	}
 	return defs, nil
+}
+
+// validateDefinition rejects a definition that could never be matched or
+// whose items cannot be addressed.
+func validateDefinition(def Definition, file string) error {
+	if def.ID == "" {
+		return fmt.Errorf("%s: definition has an empty id", file)
+	}
+	if len(def.Match.ServiceTypes) == 0 && len(def.Match.HostOS) == 0 {
+		return fmt.Errorf("%s: definition %q matches nothing (serviceTypes and hostOS are both empty)", file, def.ID)
+	}
+	for i, item := range def.Items {
+		if item.ID == "" {
+			return fmt.Errorf("%s: definition %q item %d has an empty id", file, def.ID, i+1)
+		}
+	}
+	return nil
 }
 
 func loadOne(path string) (Definition, error) {
@@ -94,11 +119,12 @@ func loadOne(path string) (Definition, error) {
 	return def, nil
 }
 
-// ForService returns the definitions whose match.serviceTypes include s.Type.
+// ForService returns the definitions whose match.serviceTypes include s.Type,
+// compared case-insensitively.
 func ForService(defs []Definition, s model.Service) []Definition {
 	out := make([]Definition, 0, len(defs))
 	for _, def := range defs {
-		if slices.Contains(def.Match.ServiceTypes, s.Type) {
+		if slices.ContainsFunc(def.Match.ServiceTypes, func(v string) bool { return strings.EqualFold(v, s.Type) }) {
 			out = append(out, def)
 		}
 	}
@@ -134,7 +160,8 @@ func Merge(def Definition, state model.ChecklistState) []ItemView {
 // Substitute replaces $T with targetIP and $D with domain in cmd. targetIP
 // must parse as an IP address. domain, if non-empty, must match
 // ^[A-Za-z0-9._-]+$ and must not start with "-" (it would read as a flag).
-// An IPv6 zone is rejected.
+// An IPv6 zone is rejected. A cmd that uses $D with an empty domain is an
+// error rather than a command with a hole in it.
 func Substitute(cmd, targetIP, domain string) (string, error) {
 	addr, err := netip.ParseAddr(targetIP)
 	if err != nil {
@@ -145,6 +172,9 @@ func Substitute(cmd, targetIP, domain string) (string, error) {
 	}
 	if domain != "" && (strings.HasPrefix(domain, "-") || !domainPattern.MatchString(domain)) {
 		return "", fmt.Errorf("invalid domain %q", domain)
+	}
+	if domain == "" && strings.Contains(cmd, "$D") {
+		return "", fmt.Errorf("command uses $D but the engagement has no domain: %q", cmd)
 	}
 	out := strings.ReplaceAll(cmd, "$T", targetIP)
 	out = strings.ReplaceAll(out, "$D", domain)

@@ -17,3 +17,14 @@ func TestDropInvalidHostsCanonicalisesIPv6(t *testing.T) {
 		}
 	}
 }
+
+func TestDropInvalidHostsRecordsDroppedIPs(t *testing.T) {
+	hosts := []HostResult{{IP: "not-an-ip"}, {IP: "10.10.10.5"}, {IP: "fe80::1%eth0"}}
+	res := dropInvalidHosts(Result{Skipped: 2, Hosts: hosts})
+	if len(res.DroppedIPs) != 2 || res.DroppedIPs[0] != "not-an-ip" || res.DroppedIPs[1] != "fe80::1%eth0" {
+		t.Fatalf("DroppedIPs = %v", res.DroppedIPs)
+	}
+	if res.Dropped != 2 || res.Skipped != 2 {
+		t.Fatalf("Dropped=%d Skipped=%d, want both carried through", res.Dropped, res.Skipped)
+	}
+}

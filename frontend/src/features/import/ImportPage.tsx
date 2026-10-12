@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { TriangleAlertIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { QueryStates } from "@/components/QueryStates";
@@ -11,11 +12,12 @@ import { DropZone } from "./DropZone";
 import { PreviewTable } from "./PreviewTable";
 import { isResolved, ResolveHosts, toOverrides, type Choices } from "./ResolveHosts";
 
-function Preview({ response, onDone }: { response: PreviewResponse; onDone: () => void }) {
+export function Preview({ response, onDone }: { response: PreviewResponse; onDone: () => void }) {
   const navigate = useNavigate();
   const { Token: token, Preview: preview } = response;
   const rows = preview.Rows ?? [];
   const unresolved = preview.Unresolved ?? [];
+  const dropped = preview.Dropped ?? [];
   const [choices, setChoices] = useState<Choices>({});
   const [skip, setSkip] = useState(false);
   const engagement = useEngagementQuery();
@@ -23,8 +25,8 @@ function Preview({ response, onDone }: { response: PreviewResponse; onDone: () =
   const pending = unresolved.filter((u) => !isResolved(choices[u.Key]));
   const apply = useMutation({
     mutationFn: () => ImportService.Apply(token, toOverrides(choices)),
-    onSuccess: () => {
-      const count = (b: string) => rows.filter((r) => r.Badge === b).length;
+    onSuccess: (applied) => {
+      const count = (b: string) => (applied.Rows ?? []).filter((r) => r.Badge === b).length;
       toast.success(
         `Imported ${count(ImportBadge.BadgeNew)} new, ${count(ImportBadge.BadgeFills)} filled; ${pending.length} unresolved skipped.`,
       );
@@ -39,10 +41,21 @@ function Preview({ response, onDone }: { response: PreviewResponse; onDone: () =
       <p className="text-sm">
         Detected tool: <strong>{preview.Tool}</strong>
       </p>
-      {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nothing in this file would change the engagement.</p>
-      ) : (
+      {(dropped.length > 0 || preview.Skipped > 0) && (
+        <p role="status" className="flex items-start gap-1 text-sm text-amber-600 dark:text-amber-400">
+          <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            {dropped.length > 0 && `Dropped ${dropped.length} invalid IP${dropped.length === 1 ? "" : "s"}: ${dropped.join(", ")}. `}
+            {preview.Skipped > 0 && `Skipped ${preview.Skipped} unreadable row${preview.Skipped === 1 ? "" : "s"}.`}
+          </span>
+        </p>
+      )}
+      {rows.length > 0 ? (
         <PreviewTable rows={rows} />
+      ) : (
+        unresolved.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nothing in this file would change the engagement.</p>
+        )
       )}
       {unresolved.length > 0 && (
         <section className="space-y-2" aria-label="Unresolved hosts">

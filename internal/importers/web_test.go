@@ -1,6 +1,9 @@
 package importers
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseMasscan(t *testing.T) {
 	res, err := Parse(readFixture(t, "masscan.json"))
@@ -130,5 +133,45 @@ func TestWebParsersRejectMalformedInput(t *testing.T) {
 				t.Fatal("want error")
 			}
 		})
+	}
+}
+
+func TestParseFeroxbusterGroupsByBase(t *testing.T) {
+	in := `{"type":"response","url":"http://a.test/x","status":200,"content_length":1}` + "\n" +
+		`{"type":"response","url":"http://10.10.10.9:8080/y","status":301,"content_length":2}` + "\n" +
+		`{"type":"response","url":"http://a.test/z","status":403,"content_length":3}` + "\n"
+	res, err := Parse([]byte(in))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(res.Hosts) != 2 {
+		t.Fatalf("hosts = %+v, want 2", res.Hosts)
+	}
+	a, b := res.Hosts[0], res.Hosts[1]
+	if a.URL != "http://a.test" || len(a.WebPaths) != 2 || a.WebPaths[1].Path != "/z" {
+		t.Errorf("first host %+v", a)
+	}
+	if b.IP != "10.10.10.9" || b.URL != "http://10.10.10.9:8080" || len(b.WebPaths) != 1 {
+		t.Errorf("second host %+v", b)
+	}
+}
+
+func TestParseGobusterStripsANSI(t *testing.T) {
+	in := "\x1b[32m/admin\x1b[0m                (Status: 301) [Size: 169]\n" +
+		"/index.html           (Status: 200) [Size: 1234]\n"
+	res, err := Parse([]byte(in))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if res.Tool != ToolGobuster || len(res.Hosts[0].WebPaths) != 2 || res.Hosts[0].WebPaths[0].Path != "/admin" {
+		t.Fatalf("result %+v", res)
+	}
+}
+
+func TestParseFfufRejectsVhostMode(t *testing.T) {
+	in := `{"commandline":"ffuf","config":{"url":"http://FUZZ.example.test/"},"results":[]}`
+	_, err := Parse([]byte(in))
+	if err == nil || !strings.Contains(err.Error(), "vhost fuzzing is not supported") {
+		t.Fatalf("err = %v, want vhost error", err)
 	}
 }

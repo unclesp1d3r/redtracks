@@ -1,12 +1,15 @@
 // Single import point for the Wails bindings so features never reach into ../bindings directly.
 export {
   ChecklistService,
+  DiagnosticsService,
   EngagementService,
   HostService,
   ImportService,
 } from "../../bindings/github.com/unclesp1d3r/redtracks/internal/app";
 export type {
   ChecklistView,
+  DefinitionsStatus,
+  ListResponse,
   Notes,
   PreviewResponse,
 } from "../../bindings/github.com/unclesp1d3r/redtracks/internal/app";
@@ -42,7 +45,7 @@ export type {
   ItemView,
   Match,
 } from "../../bindings/github.com/unclesp1d3r/redtracks/internal/checklist";
-export { Badge as ImportBadge } from "../../bindings/github.com/unclesp1d3r/redtracks/internal/importers";
+export { Badge as ImportBadge, RowKind } from "../../bindings/github.com/unclesp1d3r/redtracks/internal/importers";
 export type {
   Preview,
   Row,

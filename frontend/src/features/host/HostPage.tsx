@@ -6,6 +6,7 @@ import { hostsOf } from "@/lib/api";
 import type { Engagement, Host } from "@/lib/api";
 import { useEngagementQuery } from "@/lib/query";
 import { AccessPaths } from "./AccessPaths";
+import { ChecklistStatus } from "./ChecklistStatus";
 import { AddServiceDialog } from "./AddServiceDialog";
 import { HostHeader } from "./HostHeader";
 import { NotesEditor } from "./NotesEditor";
@@ -48,6 +49,7 @@ function HostView({ eng, host }: { eng: Engagement; host: Host }) {
         otherHosts={hostsOf(eng).filter((h) => h.ip !== host.ip)}
         credentials={eng.Creds.credentials ?? []}
       />
+      <ChecklistStatus />
       <Tabs defaultValue="services">
         <TabsList>
           <TabsTrigger value="services">Services</TabsTrigger>

@@ -1,3 +1,5 @@
+// Package app holds the Wails services that expose the engagement store,
+// checklists and importers to the frontend, plus the rotating log.
 package app
 
 import (
@@ -45,14 +47,17 @@ type App struct {
 	cancelWatch context.CancelFunc
 	defs        []checklist.Definition
 	defsErr     error
+	installErr  error
+	onOpen      []func()
 	log         *slog.Logger
 	logCloser   io.Closer
 	emit        func(name string, data any)
 }
 
-// New prepares root, installs the default checklists, opens the log, loads
-// checklist definitions and starts watching them. A definitions error is
-// logged and emitted once an emitter is set; it is never fatal.
+// New prepares root, opens the log, installs the default checklists, loads
+// checklist definitions and starts watching them. An install or load error is
+// logged and emitted once an emitter is set (SetEmitter flushes both); neither
+// is fatal.
 func New(root string) (*App, error) {
 	if err := os.MkdirAll(filepath.Join(root, engagementsDir), dirMode); err != nil {
 		return nil, fmt.Errorf("create %s: %w", root, err)
@@ -62,9 +67,9 @@ func New(root string) (*App, error) {
 		return nil, err
 	}
 	a := &App{Root: root, log: lg, logCloser: closer, defs: []checklist.Definition{}}
-	dir := filepath.Join(root, checklistsDir)
+	dir := a.checklistsDir()
 	if _, err := checklist.InstallDefaults(checklists.FS, dir); err != nil {
-		a.defsErr = err
+		a.installErr = err
 		lg.Error("install default checklists", "err", err)
 	}
 	if err := a.reloadDefs(); err != nil {
@@ -79,7 +84,7 @@ func New(root string) (*App, error) {
 // reloadDefs loads definitions from disk; on failure the previous set is kept
 // and the error is remembered for SetEmitter.
 func (a *App) reloadDefs() error {
-	defs, err := checklist.LoadDefinitions(filepath.Join(a.Root, checklistsDir))
+	defs, err := checklist.LoadDefinitions(a.checklistsDir())
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if err != nil {
@@ -102,18 +107,43 @@ func (a *App) onDefsError(err error) {
 	a.defsErr = err
 	a.mu.Unlock()
 	a.log.Error("watch checklists", "err", err)
-	a.emitEvent(eventError, err.Error())
+	a.emitError(errorKindChecklists, a.checklistsDir(), err)
 }
 
-// SetEmitter installs the event emitter and flushes a pending definitions error.
+func (a *App) checklistsDir() string { return filepath.Join(a.Root, checklistsDir) }
+
+// SetEmitter installs the event emitter and flushes pending checklist errors.
 func (a *App) SetEmitter(fn func(name string, data any)) {
 	a.mu.Lock()
 	a.emit = fn
-	pending := a.defsErr
+	pending := []error{a.installErr, a.defsErr}
 	a.mu.Unlock()
-	if pending != nil {
-		fn(eventError, pending.Error())
+	for _, err := range pending {
+		if err != nil {
+			a.emitError(errorKindChecklists, a.checklistsDir(), err)
+		}
 	}
+}
+
+// onEngagementOpened registers fn to run whenever another engagement is opened.
+func (a *App) onEngagementOpened(fn func()) {
+	a.mu.Lock()
+	a.onOpen = append(a.onOpen, fn)
+	a.mu.Unlock()
+}
+
+func (a *App) notifyOpened() {
+	a.mu.Lock()
+	hooks := slices.Clone(a.onOpen)
+	a.mu.Unlock()
+	for _, fn := range hooks {
+		fn()
+	}
+}
+
+// LogError writes a frontend-reported problem to redtracks.log.
+func (a *App) LogError(where, message string) {
+	a.log.Error("frontend", "where", where, "message", message)
 }
 
 func (a *App) emitEvent(name string, data any) {
@@ -142,6 +172,19 @@ func (a *App) Definitions() []checklist.Definition {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return slices.Clone(a.defs)
+}
+
+func (a *App) definitionsStatus() DefinitionsStatus {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	st := DefinitionsStatus{Count: len(a.defs)}
+	if a.defsErr != nil {
+		st.Error = a.defsErr.Error()
+	}
+	if a.installErr != nil {
+		st.InstallError = a.installErr.Error()
+	}
+	return st
 }
 
 // fail logs err under method at Error level and returns it unchanged.

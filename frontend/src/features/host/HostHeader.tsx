@@ -26,7 +26,8 @@ export function HostHeader({ host, meta }: { host: Host; meta: EngagementMeta })
 
   function commit() {
     if (hostname === host.hostname && os === host.os) return;
-    update.mutate({ ...host, hostname, os });
+    // Status is owned by SetStatus; send only the edited fields so a stale status is never written back.
+    update.mutate({ ...host, status: HostStatus.$zero, hostname, os });
   }
 
   return (

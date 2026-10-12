@@ -10,14 +10,18 @@ type ChecklistService struct{ app *App }
 // NewChecklistService returns the checklist service bound to a.
 func NewChecklistService(a *App) *ChecklistService { return &ChecklistService{app: a} }
 
-// Definitions returns the loaded checklist definitions.
-func (s *ChecklistService) Definitions() ([]checklist.Definition, error) {
-	return s.app.Definitions(), nil
+// DefinitionsStatus reports how the checklist definitions loaded. Error is the
+// last load or watch failure ("" when the current set loaded cleanly) and
+// InstallError is the failure to install the default set at startup.
+type DefinitionsStatus struct {
+	Count        int
+	Error        string
+	InstallError string
 }
 
-// Reload re-reads the definitions from disk now.
-func (s *ChecklistService) Reload() error {
-	return s.app.fail("ChecklistService.Reload", s.app.reloadDefs())
+// Status reports the loaded definition count and any load or install error.
+func (s *ChecklistService) Status() DefinitionsStatus {
+	return s.app.definitionsStatus()
 }
 
 // Command substitutes $T and $D in cmd.

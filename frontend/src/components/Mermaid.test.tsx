@@ -5,7 +5,10 @@ vi.mock("mermaid", () => ({
   default: { initialize: vi.fn(), render: vi.fn().mockRejectedValue(new Error("bad syntax")) },
 }));
 
+vi.mock("@/lib/api", () => ({ DiagnosticsService: { LogError: vi.fn().mockResolvedValue(undefined) } }));
+
 import mermaid from "mermaid";
+import { DiagnosticsService } from "@/lib/api";
 import { Mermaid } from "./Mermaid";
 
 test("shows the raw text in a pre when rendering fails", async () => {
@@ -13,6 +16,13 @@ test("shows the raw text in a pre when rendering fails", async () => {
   const pre = await screen.findByText("graph TD; not valid ((");
   expect(pre.tagName).toBe("PRE");
   expect(screen.getByText(/failed to render/i)).toBeInTheDocument();
+  expect(screen.getByText("bad syntax")).toBeInTheDocument();
+});
+
+test("reports a render failure through DiagnosticsService.LogError", async () => {
+  render(<Mermaid text="graph TD; broken ((" />);
+  await screen.findByText("bad syntax");
+  expect(DiagnosticsService.LogError).toHaveBeenCalledWith("Mermaid", "bad syntax");
 });
 
 test("strips scripts and event handlers from a rendered svg", async () => {

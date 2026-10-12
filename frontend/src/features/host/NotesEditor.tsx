@@ -42,6 +42,7 @@ function NotesBody({ ip, initial }: Body) {
   const [isPreview, setIsPreview] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   // The event handler must see current values without resubscribing on every keystroke.
   const live = useRef({ isDirty, baseHash, text });
@@ -54,6 +55,7 @@ function NotesBody({ ip, initial }: Body) {
     setDiskChange(null);
     setIsConfirmingReload(false);
     setIsConflict(false);
+    setDialogError(null);
   }
 
   // Rapid change events overlap reads; only the latest request may apply its result.
@@ -82,9 +84,7 @@ function NotesBody({ ip, initial }: Body) {
     mutationFn: async (overwrite: boolean) => {
       const savedText = text;
       const hash = overwrite ? (await EngagementService.ReadNotes(ip)).Hash : baseHash;
-      await EngagementService.WriteNotes(ip, savedText, hash);
-      // ponytail: a write landing between WriteNotes and this read is adopted as ours; the next change event still reconciles.
-      return { hash: (await EngagementService.ReadNotes(ip)).Hash, savedText };
+      return { hash: await EngagementService.WriteNotes(ip, savedText, hash), savedText };
     },
     onSuccess: ({ hash, savedText }) => {
       setBaseHash(hash);
@@ -93,10 +93,12 @@ function NotesBody({ ip, initial }: Body) {
       setDiskChange(null);
       setIsConflict(false);
       setError(null);
+      setDialogError(null);
     },
-    onError: (e) => {
+    onError: (e, overwrite) => {
       const msg = errorMessage(e);
       if (msg.startsWith(CONFLICT_PREFIX)) setIsConflict(true);
+      else if (overwrite) setDialogError(msg);
       else setError(msg);
     },
   });
@@ -105,7 +107,7 @@ function NotesBody({ ip, initial }: Body) {
     try {
       adopt(await EngagementService.ReadNotes(ip));
     } catch (e) {
-      setError(errorMessage(e));
+      setDialogError(errorMessage(e));
     }
   }
 
@@ -171,12 +173,23 @@ function NotesBody({ ip, initial }: Body) {
           {isDirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
         </div>
       </div>
-      <Dialog open={isConflict} onOpenChange={setIsConflict}>
+      <Dialog
+        open={isConflict}
+        onOpenChange={(o) => {
+          setIsConflict(o);
+          if (!o) setDialogError(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Notes changed on disk</DialogTitle>
             <DialogDescription>notes.md was modified since you loaded it. Reload discards your edits; Overwrite replaces the file with your text.</DialogDescription>
           </DialogHeader>
+          {dialogError && (
+            <p role="alert" className="text-sm text-destructive">
+              {dialogError}
+            </p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => void reloadFromDisk()}>
               Reload

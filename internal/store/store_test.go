@@ -186,18 +186,22 @@ func TestWriteNotesConflict(t *testing.T) {
 	if err != nil || text != "edited in vim\n" || h1 == h2 {
 		t.Fatalf("refetch: %q %q %q %v", text, h1, h2, err)
 	}
-	err = s.WriteNotes(fixtureIP, "stale write", h1)
+	_, err = s.WriteNotes(fixtureIP, "stale write", h1)
 	if !errors.Is(err, ErrConflict) || !strings.Contains(err.Error(), path) {
 		t.Fatalf("want ErrConflict with path, got %v", err)
 	}
 	if raw := readFile(t, path); raw != "edited in vim\n" {
 		t.Fatalf("external text clobbered: %q", raw)
 	}
-	if err := s.WriteNotes(fixtureIP, "merged", h2); err != nil {
+	newHash, err := s.WriteNotes(fixtureIP, "merged", h2)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if raw := readFile(t, path); raw != "merged" {
 		t.Fatalf("notes = %q", raw)
+	}
+	if _, h3, err := s.ReadNotes(fixtureIP); err != nil || h3 != newHash {
+		t.Fatalf("WriteNotes hash %q, ReadNotes hash %q (%v)", newHash, h3, err)
 	}
 }
 
@@ -216,7 +220,7 @@ func TestReadNotesMissingFile(t *testing.T) {
 	if err != nil || text != "" || hash != emptySHA {
 		t.Fatalf("missing notes: %q %q %v", text, hash, err)
 	}
-	if err := s.WriteNotes("", "fresh", hash); err != nil {
+	if _, err := s.WriteNotes("", "fresh", hash); err != nil {
 		t.Fatalf("write over missing: %v", err)
 	}
 }
@@ -307,13 +311,13 @@ func TestAddHostExistingReturnsErrHostExists(t *testing.T) {
 func TestAddHostCreatesFolder(t *testing.T) {
 	dir := copyFixture(t)
 	s := mustOpen(t, dir)
-	if err := s.AddHost(model.Host{ID: "N", IP: "10.0.0.2"}); err != nil {
+	if err := s.AddHost(model.Host{ID: "N", IP: "10.0.0.2", Status: model.HostStatusUntouched}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "hosts", "10.0.0.2", "host.json")); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.AddHost(model.Host{ID: "M", IP: "10.0.0.2"}); err == nil {
+	if err := s.AddHost(model.Host{ID: "M", IP: "10.0.0.2", Status: model.HostStatusUntouched}); err == nil {
 		t.Fatal("duplicate AddHost succeeded")
 	}
 	if _, ok := mustOpen(t, dir).Engagement().Host("10.0.0.2"); !ok {

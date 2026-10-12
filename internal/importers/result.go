@@ -23,7 +23,8 @@ type FindingResult struct {
 	Title    string
 	Severity string
 	Evidence string
-	Port     int
+	// Port is the port the finding applies to; 0 means the target's web port.
+	Port int
 }
 
 // UserResult is one enumerated account.
@@ -55,8 +56,13 @@ type HostResult struct {
 type Result struct {
 	Tool  string
 	Hosts []HostResult
-	// Dropped counts HostResults removed because a non-empty IP failed netip.ParseAddr.
+	// Dropped counts HostResults removed because a non-empty IP failed
+	// netip.ParseAddr or carried an IPv6 zone. Kept IPs are canonicalised.
 	Dropped int
+	// DroppedIPs holds the invalid or zoned IP strings counted by Dropped.
+	DroppedIPs []string
+	// Skipped counts rows a parser could not read and left out.
+	Skipped int
 }
 
 // Tool names, as returned by Detect and stored in Result.Tool.

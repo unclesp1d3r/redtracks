@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
 	"github.com/unclesp1d3r/redtracks/internal/store"
@@ -159,8 +160,26 @@ func (s *EngagementService) mutateFindings(method string, fn func(*model.Finding
 	return s.app.withStore(method, func(st *store.Store) error { return st.MutateFindings(fn) })
 }
 
-// AddFinding adds a finding, assigning an ID when empty.
+// checkFinding lowercases the severity and requires the finding's host to exist.
+func (s *EngagementService) checkFinding(method string, f model.Finding) (model.Finding, error) {
+	f.Severity = strings.ToLower(strings.TrimSpace(f.Severity))
+	st, err := s.app.Store()
+	if err != nil {
+		return f, s.app.fail(method, err)
+	}
+	if _, ok := st.Engagement().HostByID(f.HostID); !ok {
+		return f, s.app.fail(method, fmt.Errorf("finding host %q: %w", f.HostID, errNotFound))
+	}
+	return f, nil
+}
+
+// AddFinding adds a finding, assigning an ID when empty. Severity is lowercased
+// and HostID must name a host in the engagement.
 func (s *EngagementService) AddFinding(f model.Finding) error {
+	f, err := s.checkFinding("EngagementService.AddFinding", f)
+	if err != nil {
+		return err
+	}
 	f.ID = withNewID(f.ID)
 	return s.mutateFindings("EngagementService.AddFinding", func(ff *model.FindingsFile) error {
 		ff.Findings = append(slices.Clone(ff.Findings), f)
@@ -168,8 +187,12 @@ func (s *EngagementService) AddFinding(f model.Finding) error {
 	})
 }
 
-// UpdateFinding replaces a finding's fields.
+// UpdateFinding replaces a finding's fields, with the same checks as AddFinding.
 func (s *EngagementService) UpdateFinding(f model.Finding) error {
+	f, err := s.checkFinding("EngagementService.UpdateFinding", f)
+	if err != nil {
+		return err
+	}
 	return s.mutateFindings("EngagementService.UpdateFinding", func(ff *model.FindingsFile) error {
 		next, err := updateByID(ff.Findings, f.ID, findingID, func(model.Finding) model.Finding { return f })
 		ff.Findings = next

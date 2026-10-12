@@ -141,10 +141,11 @@ func boardLess(a, b HostSummary) bool {
 	return a.IP < b.IP
 }
 
-// ratio is num/den, with a zero denominator treated as 0.
+// ratio is num/den, with a zero denominator treated as 1: no flags or no
+// items means nothing is outstanding, so such hosts sort last on the board.
 func ratio(num, den int) float64 {
 	if den == 0 {
-		return 0
+		return 1
 	}
 	return float64(num) / float64(den)
 }

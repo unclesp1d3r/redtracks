@@ -1,12 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ImportBadge, type Row } from "@/lib/api";
+import { ImportBadge, RowKind, type Row } from "@/lib/api";
 import { PreviewTable } from "./PreviewTable";
 
 const rows: Row[] = [
-  { Kind: "host", HostIP: "10.0.0.1", Badge: ImportBadge.BadgeNew, Label: "10.0.0.1" },
-  { Kind: "service", HostIP: "10.0.0.1", Badge: ImportBadge.BadgeFills, Label: "80/tcp http" },
-  { Kind: "host", HostIP: "10.0.0.2", Badge: ImportBadge.BadgeDuplicate, Label: "10.0.0.2" },
+  { Kind: RowKind.RowKindHost, HostIP: "10.0.0.1", Badge: ImportBadge.BadgeNew, Label: "10.0.0.1" },
+  { Kind: RowKind.RowKindService, HostIP: "10.0.0.1", Badge: ImportBadge.BadgeFills, Label: "80/tcp http" },
+  { Kind: RowKind.RowKindHost, HostIP: "10.0.0.2", Badge: ImportBadge.BadgeDuplicate, Label: "10.0.0.2" },
 ];
 
 describe("PreviewTable", () => {

@@ -1,6 +1,9 @@
 package importers
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseNmapLocalhost(t *testing.T) {
 	res, err := Parse(readFixture(t, "nmap-localhost.xml"))
@@ -69,5 +72,39 @@ func TestParseNmapOSGuess(t *testing.T) {
 func TestParseNmapMalformedXML(t *testing.T) {
 	if _, err := parseNmap([]byte("<nmaprun><host>")); err == nil {
 		t.Fatal("want error for truncated XML")
+	}
+}
+
+func TestParseNmapCountsNonNumericPortAsSkipped(t *testing.T) {
+	const doc = `<nmaprun><host><status state="up"/><address addr="10.0.0.1" addrtype="ipv4"/><ports>
+<port protocol="tcp" portid="http"><state state="open"/><service name="http"/></port>
+<port protocol="tcp" portid="22"><state state="open"/><service name="ssh"/></port>
+</ports></host></nmaprun>`
+	res, err := parseNmap([]byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Skipped != 1 || len(res.Hosts[0].Services) != 1 {
+		t.Fatalf("Skipped=%d services=%+v, want 1 skipped and ssh kept", res.Skipped, res.Hosts[0].Services)
+	}
+}
+
+func TestParseNmapSkipsOutOfRangePorts(t *testing.T) {
+	var ports strings.Builder
+	for _, id := range []string{"-1", "0", "70000", "65535", "1"} {
+		ports.WriteString(`<port protocol="tcp" portid="` + id + `"><state state="open"/></port>`)
+	}
+	doc := `<nmaprun><host><status state="up"/><address addr="10.0.0.1" addrtype="ipv4"/><ports>` +
+		ports.String() + `</ports></host></nmaprun>`
+	res, err := parseNmap([]byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Skipped != 3 || len(res.Hosts[0].Services) != 2 {
+		t.Fatalf(
+			"Skipped=%d services=%+v, want 3 skipped and ports 65535 and 1 kept",
+			res.Skipped,
+			res.Hosts[0].Services,
+		)
 	}
 }

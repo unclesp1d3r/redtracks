@@ -20,8 +20,8 @@ const (
 	minWindowWidth  = 900
 	minWindowHeight = 600
 
-	// Window background, matches the dark theme --background token.
-	bgRed, bgGreen, bgBlue = 14, 17, 27
+	// Window background, the dark theme --background token oklch(0.15 0.02 260) in sRGB.
+	bgRed, bgGreen, bgBlue = 7, 11, 20
 )
 
 // Files under frontend/dist are embedded into the binary and served to the webview.
@@ -30,7 +30,11 @@ const (
 var assets embed.FS
 
 func main() {
-	backend, err := app.New(store.RootDir())
+	root, err := store.RootDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	backend, err := app.New(root)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,6 +47,7 @@ func main() {
 			application.NewService(app.NewHostService(backend)),
 			application.NewService(app.NewImportService(backend)),
 			application.NewService(app.NewChecklistService(backend)),
+			application.NewService(app.NewDiagnosticsService(backend)),
 		},
 		// Localhost-only and unauthenticated by design: single-operator machine, browser fallback.
 		Server: application.ServerOptions{Host: "localhost"},

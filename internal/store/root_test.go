@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
@@ -11,8 +12,9 @@ import (
 
 func TestRootDirHonoursEnv(t *testing.T) {
 	t.Setenv("REDTRACKS_HOME", "/tmp/x")
-	if got := RootDir(); got != "/tmp/x" {
-		t.Fatalf("RootDir = %q, want /tmp/x", got)
+	got, err := RootDir()
+	if err != nil || got != "/tmp/x" {
+		t.Fatalf("RootDir = %q, %v, want /tmp/x", got, err)
 	}
 }
 
@@ -22,8 +24,64 @@ func TestRootDirDefaultsToHome(t *testing.T) {
 	if err != nil {
 		t.Skip("no home dir")
 	}
-	if got, want := RootDir(), filepath.Join(home, "RedTracks"); got != want {
-		t.Fatalf("RootDir = %q, want %q", got, want)
+	if got, err := RootDir(); err != nil || got != filepath.Join(home, "RedTracks") {
+		t.Fatalf("RootDir = %q, %v, want %q", got, err, filepath.Join(home, "RedTracks"))
+	}
+}
+
+func TestRootDirErrorsWithoutHome(t *testing.T) {
+	t.Setenv("REDTRACKS_HOME", "")
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	t.Setenv("home", "")
+	if got, err := RootDir(); err == nil {
+		t.Fatalf("RootDir = %q, want an error instead of a relative fallback", got)
+	}
+}
+
+func TestListEngagementsDetailedReportsBroken(t *testing.T) {
+	root := t.TempDir()
+	if _, err := CreateEngagement(root, "good", "", model.EngagementLab); err != nil {
+		t.Fatal(err)
+	}
+	badDir := filepath.Join(root, "engagements", "bad")
+	mustWriteAll(t, filepath.Join(badDir, "engagement.json"), "{")
+	sums, broken, err := ListEngagementsDetailed(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sums) != 1 || sums[0].Name != "good" {
+		t.Fatalf("summaries = %+v", sums)
+	}
+	if len(broken) != 1 || broken[0].Dir != badDir || !strings.Contains(broken[0].Error, "engagement.json") {
+		t.Fatalf("broken = %+v", broken)
+	}
+	if _, err := ListEngagements(root); err == nil {
+		t.Fatal("ListEngagements should still report the broken folder")
+	}
+}
+
+func TestListEngagementsDetailedHostsDirUnreadableIsBroken(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	root := t.TempDir()
+	dir, err := CreateEngagement(root, "locked", "", model.EngagementLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hosts := filepath.Join(dir, "hosts")
+	if err := os.Chmod(hosts, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(hosts, 0o700); err != nil { //nolint:gosec // directories need the execute bit
+			t.Error(err)
+		}
+	})
+	sums, broken, err := ListEngagementsDetailed(root)
+	if err != nil || len(sums) != 0 || len(broken) != 1 || broken[0].Dir != dir {
+		t.Fatalf("got %+v, %+v, %v", sums, broken, err)
 	}
 }
 

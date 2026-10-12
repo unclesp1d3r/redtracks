@@ -1,3 +1,4 @@
+// Package model defines the RedTracks domain types and their on-disk JSON shape.
 package model
 
 import (
@@ -18,6 +19,16 @@ const (
 	EngagementCustom EngagementType = "custom"
 )
 
+// IsValid reports whether t is one of the known engagement types.
+func (t EngagementType) IsValid() bool {
+	switch t {
+	case EngagementLab, EngagementOSCP, EngagementOSAI, EngagementCustom:
+		return true
+	default:
+		return false
+	}
+}
+
 // HostStatus is how far the operator has progressed on a host.
 type HostStatus string
 
@@ -31,6 +42,17 @@ const (
 	HostStatusDone        HostStatus = "done"
 )
 
+// IsValid reports whether s is one of the known host statuses.
+func (s HostStatus) IsValid() bool {
+	switch s {
+	case HostStatusUntouched, HostStatusEnumerating, HostStatusFoothold, HostStatusUser, HostStatusRoot,
+		HostStatusDone:
+		return true
+	default:
+		return false
+	}
+}
+
 // ItemStatus is the state of one checklist item.
 type ItemStatus string
 
@@ -40,6 +62,41 @@ const (
 	ItemDone    ItemStatus = "done"
 	ItemSkipped ItemStatus = "skipped"
 	ItemNA      ItemStatus = "na"
+)
+
+// IsValid reports whether s is one of the known item statuses.
+func (s ItemStatus) IsValid() bool {
+	switch s {
+	case ItemTodo, ItemDone, ItemSkipped, ItemNA:
+		return true
+	default:
+		return false
+	}
+}
+
+// Finding severities. Finding.Severity stays a string in the file contract.
+const (
+	SeverityInfo     = "info"
+	SeverityLow      = "low"
+	SeverityMedium   = "medium"
+	SeverityHigh     = "high"
+	SeverityCritical = "critical"
+)
+
+// Finding statuses. Finding.Status stays a string in the file contract.
+const (
+	FindingNoted         = "noted"
+	FindingConfirmed     = "confirmed"
+	FindingExploited     = "exploited"
+	FindingFalsePositive = "false-positive"
+)
+
+// Credential kinds. Credential.Kind stays a string in the file contract.
+const (
+	CredKindPassword = "password"
+	CredKindHash     = "hash"
+	CredKindKey      = "key"
+	CredKindToken    = "token"
 )
 
 // FlagType is a kind of flag an engagement awards points for.
@@ -77,7 +134,8 @@ type WebPath struct {
 	Source string `json:"source"`
 }
 
-// ItemState is the recorded state of one checklist item.
+// ItemState is the recorded state of one checklist item. UpdatedAt is RFC3339,
+// or "" when unset; a time.Time zero value would change the file contract.
 type ItemState struct {
 	Status    ItemStatus `json:"status"`
 	Note      string     `json:"note"`
@@ -88,6 +146,9 @@ type ItemState struct {
 type ChecklistState struct {
 	Items map[string]ItemState `json:"items"`
 }
+
+// ProtocolTCP is the default transport for a service.
+const ProtocolTCP = "tcp"
 
 // Service is a network service on a host.
 type Service struct {
@@ -112,7 +173,7 @@ func (s Service) Label() string {
 type Flag struct {
 	TypeID     string `json:"typeId"`
 	Value      string `json:"value"`
-	CapturedAt string `json:"capturedAt"`
+	CapturedAt string `json:"capturedAt"` // RFC3339, or "" when unset
 	Submitted  bool   `json:"submitted"`
 }
 
@@ -222,6 +283,15 @@ func (e Engagement) Host(ip string) (Host, bool) {
 	return e.Hosts[i], true
 }
 
+// HostByID returns the host with the given ID.
+func (e Engagement) HostByID(id string) (Host, bool) {
+	i := slices.IndexFunc(e.Hosts, func(h Host) bool { return h.ID == id })
+	if i < 0 {
+		return Host{}, false
+	}
+	return e.Hosts[i], true
+}
+
 func orEmpty[T any](s []T) []T {
 	if s == nil {
 		return []T{}
@@ -236,7 +306,8 @@ func (c ChecklistState) normalize() ChecklistState {
 	return c
 }
 
-// Normalize returns a copy with nil slices and maps replaced by empty ones so they marshal as [] and {}.
+// Normalize returns a copy with nil slices and maps replaced by empty ones so they marshal as [] and {},
+// and an empty service protocol defaulted to tcp.
 func (h Host) Normalize() Host {
 	h.Tags = orEmpty(h.Tags)
 	h.AccessPaths = orEmpty(h.AccessPaths)
@@ -244,6 +315,9 @@ func (h Host) Normalize() Host {
 	h.Checklist = h.Checklist.normalize()
 	services := make([]Service, len(h.Services))
 	for i, s := range h.Services {
+		if s.Protocol == "" {
+			s.Protocol = ProtocolTCP // a hand-edited service may omit it; imports match on port and protocol
+		}
 		s.WebPaths = orEmpty(s.WebPaths)
 		s.Checklist = s.Checklist.normalize()
 		services[i] = s

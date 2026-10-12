@@ -1,8 +1,8 @@
 import { Events } from "@wailsio/runtime";
 import { MutationCache, QueryCache, QueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { EngagementService, errorMessage, list } from "./api";
-import { errorBanner } from "./errorBanner";
+import { ChecklistService, EngagementService, errorMessage, list } from "./api";
+import { errorBanner, type ErrorEvent } from "./errorBanner";
 
 declare module "@tanstack/react-query" {
   interface Register {
@@ -35,6 +35,8 @@ export const keys = {
   checklists: (ip: string, serviceId: string) => ["checklists", ip, serviceId] as const,
   notes: (ip: string) => ["notes", ip] as const,
   definitions: () => ["definitions"] as const,
+  checklistStatus: () => ["checklistStatus"] as const,
+  root: () => ["root"] as const,
 };
 
 /** Same query key as the rest of the app, so every screen shares one fetch. */
@@ -59,13 +61,32 @@ function invalidateEngagementQueries() {
   INVALIDATED_ON_CHANGE.forEach((queryKey) => void queryClient.invalidateQueries({ queryKey }));
 }
 
+/** Loads checklist definition status; a clean load also clears any checklists error entries. */
+export async function fetchChecklistStatus() {
+  const status = await ChecklistService.Status();
+  if (!status.Error && !status.InstallError) errorBanner.clearKind("checklists");
+  return status;
+}
+
+export function useChecklistStatusQuery() {
+  return useQuery({ queryKey: keys.checklistStatus(), queryFn: fetchChecklistStatus });
+}
+
+function refreshChecklistStatus() {
+  void queryClient.fetchQuery({ queryKey: keys.checklistStatus(), queryFn: fetchChecklistStatus, staleTime: 0 }).catch((e) => console.error("checklist status failed:", e));
+}
+
 export function subscribeToEngagementEvents(): () => void {
-  const offChanged = Events.On("engagement:changed", () => {
-    errorBanner.clear();
+  const offChanged = Events.On("engagement:changed", (e: { data: unknown }) => {
+    // The payload is the list of changed paths; "checklists" means the definitions reloaded.
+    const paths = Array.isArray(e.data) ? e.data.filter((p): p is string => typeof p === "string") : [];
+    errorBanner.clearChanged(paths);
+    if (paths.includes("checklists")) refreshChecklistStatus();
     invalidateEngagementQueries();
   });
-  const offError = Events.On("engagement:error", (e: { data: unknown }) => {
-    errorBanner.set(typeof e.data === "string" ? e.data : errorMessage(e.data));
+  const offError = Events.On("engagement:error", (e: { data: ErrorEvent }) => {
+    errorBanner.add(e.data);
+    if (e.data.Kind === "checklists") refreshChecklistStatus();
   });
   return () => {
     offChanged();

@@ -38,12 +38,12 @@ var sniffRules = []sniffRule{
 	{ToolNetexec, sniffNetexec},
 }
 
-// Detect names the tool that produced head, the first few KB of a file.
+// Detect names the tool that produced head, the first few KB of a file. Parse
+// strips ANSI colour before calling it; direct callers must do the same.
 func Detect(head []byte) (string, error) {
 	if len(head) > sniffBytes {
 		head = head[:sniffBytes]
 	}
-	head = ansiEscape.ReplaceAll(head, nil) // netexec output may be colourised
 	tried := make([]string, 0, len(sniffRules))
 	for _, r := range sniffRules {
 		if r.match(head) {

@@ -65,15 +65,15 @@ describe("NotesEditor", () => {
   it("keeps text typed during a save dirty and does not adopt it away", async () => {
     setup();
     const area = (await screen.findByLabelText("Notes text")) as HTMLTextAreaElement;
-    let finishWrite: () => void = () => undefined;
-    writeNotes.mockReturnValue(new Promise<void>((resolve) => (finishWrite = resolve)));
+    let finishWrite: (hash: string) => void = () => undefined;
+    writeNotes.mockReturnValue(new Promise<string>((resolve) => (finishWrite = resolve)));
     fireEvent.change(area, { target: { value: "first" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(writeNotes).toHaveBeenCalledWith("10.0.0.1", "first", "h1"));
 
     fireEvent.change(area, { target: { value: "first plus more" } });
     readNotes.mockResolvedValue({ Text: "first", Hash: "h2" });
-    await act(async () => finishWrite());
+    await act(async () => finishWrite("h2"));
     await waitFor(() => expect(screen.queryByText("Unsaved changes")).not.toBeNull());
 
     await fireChanged();
@@ -96,5 +96,62 @@ describe("NotesEditor", () => {
     await waitFor(() => expect(area.value).toBe("newer"));
     await act(async () => resolveFirst({ Text: "older", Hash: "h2" }));
     expect(area.value).toBe("newer");
+  });
+
+  async function typeAndSave(value: string) {
+    const area = (await screen.findByLabelText("Notes text")) as HTMLTextAreaElement;
+    fireEvent.change(area, { target: { value } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    return area;
+  }
+
+  it("opens the conflict dialog, and Overwrite re-reads the hash before writing", async () => {
+    setup();
+    writeNotes.mockRejectedValueOnce(new Error("conflict: notes.md changed on disk"));
+    await typeAndSave("mine");
+    await screen.findByText("Notes changed on disk");
+
+    readNotes.mockResolvedValue({ Text: "theirs", Hash: "h9" });
+    writeNotes.mockResolvedValueOnce("h10");
+    readNotes.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Overwrite" }));
+    await waitFor(() => expect(writeNotes).toHaveBeenLastCalledWith("10.0.0.1", "mine", "h9"));
+    expect(readNotes).toHaveBeenCalledWith("10.0.0.1");
+    await waitFor(() => expect(screen.queryByText("Notes changed on disk")).toBeNull());
+  });
+
+  it("Reload in the conflict dialog adopts the disk text and clears dirty", async () => {
+    setup();
+    writeNotes.mockRejectedValueOnce(new Error("conflict: notes.md changed on disk"));
+    const area = await typeAndSave("mine");
+    await screen.findByText("Notes changed on disk");
+
+    readNotes.mockResolvedValue({ Text: "theirs", Hash: "h9" });
+    fireEvent.click(screen.getByRole("button", { name: "Reload" }));
+    await waitFor(() => expect(area.value).toBe("theirs"));
+    expect(screen.queryByText("Unsaved changes")).toBeNull();
+    expect(screen.queryByText("Notes changed on disk")).toBeNull();
+  });
+
+  it("shows a failed Reload inside the conflict dialog", async () => {
+    setup();
+    writeNotes.mockRejectedValueOnce(new Error("conflict: notes.md changed on disk"));
+    await typeAndSave("mine");
+    const dialog = await screen.findByRole("dialog");
+
+    readNotes.mockRejectedValue(new Error("disk unreadable"));
+    fireEvent.click(screen.getByRole("button", { name: "Reload" }));
+    await waitFor(() => expect(dialog).toHaveTextContent("disk unreadable"));
+  });
+
+  it("sends the hash WriteNotes returned on the next save", async () => {
+    setup();
+    writeNotes.mockResolvedValueOnce("h2").mockResolvedValueOnce("h3");
+    const area = await typeAndSave("one");
+    await waitFor(() => expect(writeNotes).toHaveBeenLastCalledWith("10.0.0.1", "one", "h1"));
+    await waitFor(() => expect(screen.queryByText("Unsaved changes")).toBeNull());
+    fireEvent.change(area, { target: { value: "two" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(writeNotes).toHaveBeenLastCalledWith("10.0.0.1", "two", "h2"));
   });
 });

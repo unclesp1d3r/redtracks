@@ -35,16 +35,20 @@ func (s *HostService) Add(ip, hostname string) error {
 	return s.app.withStore("HostService.Add", func(st *store.Store) error { return st.AddHost(h) })
 }
 
-// Update replaces Hostname, OS, Tags and Status only.
+// Update replaces Hostname and OS only; SetStatus owns Status, and no screen
+// edits Tags yet, so a stale client copy must not overwrite them.
 func (s *HostService) Update(h model.Host) error {
 	return s.mutate("HostService.Update", h.IP, func(cur *model.Host) error {
-		cur.Hostname, cur.OS, cur.Tags, cur.Status = h.Hostname, h.OS, slices.Clone(h.Tags), h.Status
+		cur.Hostname, cur.OS = h.Hostname, h.OS
 		return nil
 	})
 }
 
 // SetStatus sets a host's status.
 func (s *HostService) SetStatus(ip string, st model.HostStatus) error {
+	if !st.IsValid() {
+		return s.app.fail("HostService.SetStatus", fmt.Errorf("invalid host status %q", st))
+	}
 	return s.mutate("HostService.SetStatus", ip, func(cur *model.Host) error {
 		cur.Status = st
 		return nil
@@ -115,6 +119,9 @@ func (s *HostService) SetFlag(ip string, f model.Flag) error {
 
 // SetItem records a checklist item's state; serviceID "" targets the host checklist.
 func (s *HostService) SetItem(ip, serviceID, itemID string, st model.ItemStatus, note string) error {
+	if !st.IsValid() {
+		return s.app.fail("HostService.SetItem", fmt.Errorf("invalid item status %q", st))
+	}
 	state := model.ItemState{Status: st, Note: note, UpdatedAt: time.Now().UTC().Format(time.RFC3339)}
 	return s.mutate("HostService.SetItem", ip, func(cur *model.Host) error {
 		if serviceID == "" {

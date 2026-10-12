@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"slices"
 	"time"
@@ -24,9 +25,10 @@ type fileSpec[T any] struct {
 
 func (s *Store) metaSpec() fileSpec[model.EngagementMeta] {
 	return fileSpec[model.EngagementMeta]{
-		path: metaPath(s.dir),
-		get:  func() (model.EngagementMeta, error) { return s.eng.Meta, nil },
-		set:  func(m model.EngagementMeta) { s.eng.Meta = m },
+		path:  metaPath(s.dir),
+		get:   func() (model.EngagementMeta, error) { return s.eng.Meta, nil },
+		set:   func(m model.EngagementMeta) { s.eng.Meta = m },
+		check: func(m model.EngagementMeta) error { return checkMeta(metaPath(s.dir), m) },
 		normalize: func(m model.EngagementMeta) model.EngagementMeta {
 			if m.FlagTypes == nil {
 				m.FlagTypes = []model.FlagType{}
@@ -61,6 +63,10 @@ func (s *Store) findingsSpec() fileSpec[model.FindingsFile] {
 
 // hostSpec returns the spec for the host at ip, or an error if ip is invalid.
 func (s *Store) hostSpec(ip string) (fileSpec[model.Host], error) {
+	ip, err := validateIP(ip) // canonical, so "FE80::1" and "fe80::1" are one host
+	if err != nil {
+		return fileSpec[model.Host]{}, err
+	}
 	path, err := hostPath(s.dir, ip)
 	if err != nil {
 		return fileSpec[model.Host]{}, err
@@ -90,7 +96,7 @@ func (s *Store) hostSpec(ip string) (fileSpec[model.Host], error) {
 			if h.IP != ip {
 				return fmt.Errorf("%s: host.json ip %q does not match folder name %q", path, h.IP, ip)
 			}
-			return nil
+			return checkHost(path, h)
 		},
 		normalize: model.Host.Normalize,
 	}, nil
@@ -118,13 +124,18 @@ func readState(path string) ([]byte, time.Time, error) {
 	return data, mtime, err
 }
 
+// decode parses data and runs check. A missing file (nil data) decodes to the
+// zero value unchecked; an existing but empty file is checked like any other
+// content, so an emptied host.json is rejected rather than adopted as a zero host.
 func (sp fileSpec[T]) decode(data []byte) (T, error) {
 	var v T
-	if len(data) == 0 {
+	if data == nil {
 		return v, nil
 	}
-	if err := decodeJSON(sp.path, data, &v); err != nil {
-		return v, err
+	if len(data) > 0 {
+		if err := decodeJSON(sp.path, data, &v); err != nil {
+			return v, err
+		}
 	}
 	if sp.check != nil {
 		if err := sp.check(v); err != nil {
@@ -141,14 +152,39 @@ func (s *Store) record(path string, data []byte, mtime time.Time) {
 }
 
 // refresh re-reads the file when its mtime moved and adopts the parsed value.
-// On a parse failure the in-memory copy and recorded hash stay untouched; the
-// failing mtime is remembered so the error surfaces once per on-disk change.
+// On a parse or validation failure (an emptied file included) the in-memory
+// copy and recorded hash stay untouched; the failing mtime is remembered so
+// the error surfaces once per on-disk change.
+// Stat and read errors are reported once until their text changes.
 func refresh[T any](s *Store, sp fileSpec[T]) (bool, error) {
+	changed, err := refreshFile(s, sp)
+	return changed, s.dedupeError(sp.path, err)
+}
+
+// dedupeError returns err only when it differs from the last error reported
+// for path, and forgets the path's last error on success.
+func (s *Store) dedupeError(path string, err error) error {
+	if err == nil {
+		delete(s.lastErrs, path)
+		return nil
+	}
+	if s.lastErrs[path] == err.Error() {
+		return nil
+	}
+	s.lastErrs[path] = err.Error()
+	return err
+}
+
+func refreshFile[T any](s *Store, sp fileSpec[T]) (bool, error) {
 	mtime, err := statMtime(sp.path)
 	if err != nil {
 		return false, err
 	}
-	if known, ok := s.mtimes[sp.path]; ok && known.Equal(mtime) {
+	known, seen := s.mtimes[sp.path]
+	if mtime.IsZero() && seen && !known.IsZero() {
+		return false, fmt.Errorf("%s was deleted while open, keeping the last copy: %w", sp.path, fs.ErrNotExist)
+	}
+	if seen && known.Equal(mtime) {
 		return false, nil
 	}
 	if failed, ok := s.failedMtimes[sp.path]; ok && failed.Equal(mtime) {
@@ -171,7 +207,10 @@ func refresh[T any](s *Store, sp fileSpec[T]) (bool, error) {
 
 // mutate is the hash-check-and-reapply write path; the caller holds s.mu.
 // If the file changed since the last read it is reparsed first, so fn always
-// runs against what is on disk. A corrupt file is never overwritten.
+// runs against what is on disk. A corrupt file is never overwritten. A file
+// that is missing and was never loaded is not adopted, so a mutation on an
+// unknown host fails "not found" instead of inserting a zero value; a file
+// emptied or removed after loading is refused.
 func mutate[T any](s *Store, sp fileSpec[T], fn func(*T) error) error {
 	data, _, err := readState(sp.path)
 	if err != nil {
@@ -180,7 +219,7 @@ func mutate[T any](s *Store, sp fileSpec[T], fn func(*T) error) error {
 	if len(data) == 0 && !s.mtimes[sp.path].IsZero() {
 		return fmt.Errorf("%s vanished or was emptied while open: %w", sp.path, os.ErrNotExist)
 	}
-	if s.hashes[sp.path] != sha256.Sum256(data) {
+	if data != nil && s.hashes[sp.path] != sha256.Sum256(data) {
 		fresh, err := sp.decode(data)
 		if err != nil {
 			return err
@@ -208,7 +247,7 @@ func mutate[T any](s *Store, sp fileSpec[T], fn func(*T) error) error {
 func marshalIndentNL(v any) ([]byte, error) {
 	out, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		return nil, err //nolint:wrapcheck // callers add the path context
+		return nil, err
 	}
 	return append(out, '\n'), nil
 }
@@ -217,6 +256,11 @@ func marshalIndentNL(v any) ([]byte, error) {
 func persist[T any](s *Store, sp fileSpec[T], v T) error {
 	if sp.normalize != nil {
 		v = sp.normalize(v)
+	}
+	if sp.check != nil {
+		if err := sp.check(v); err != nil {
+			return err
+		}
 	}
 	out, err := marshalIndentNL(v)
 	if err != nil {

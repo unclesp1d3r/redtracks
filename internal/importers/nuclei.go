@@ -37,7 +37,7 @@ func parseNuclei(data []byte) (Result, error) {
 		if err != nil {
 			return Result{}, fmt.Errorf("nuclei line %d: %w", n+1, err)
 		}
-		key := base.IP + base.URL
+		key := base.URL
 		i, seen := index[key]
 		if !seen {
 			i = len(hosts)
@@ -52,17 +52,11 @@ func parseNuclei(data []byte) (Result, error) {
 }
 
 // nucleiHost resolves a nuclei host (URL, host:port, or bare host) to a
-// HostResult with IP for IP literals and URL otherwise.
+// HostResult. IP literals keep their URL so its port and scheme still default
+// the web port and service type of findings that carry no port field.
 func nucleiHost(host string) (HostResult, error) {
 	if !strings.Contains(host, "://") {
 		host = "http://" + host
 	}
-	h, err := webBase(host)
-	if err != nil {
-		return HostResult{}, err
-	}
-	if h.IP != "" {
-		h.URL = ""
-	}
-	return h, nil
+	return webBase(host)
 }

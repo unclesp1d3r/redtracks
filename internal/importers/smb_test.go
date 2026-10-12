@@ -62,8 +62,8 @@ func assertNetexecFixture(t *testing.T, res Result) {
 	if len(h.Users) != 1 || h.Users[0] != (UserResult{Name: "svc_backup", Domain: "corp.local"}) {
 		t.Errorf("users = %+v", h.Users)
 	}
-	want := []ShareResult{{"backups", "READ,WRITE"}, {"IPC$", "READ"}}
-	if len(h.Shares) != 2 || h.Shares[0] != want[0] || h.Shares[1] != want[1] {
+	want := []ShareResult{{"ADMIN$", ""}, {"backups", "READ,WRITE"}, {"IPC$", "READ"}}
+	if len(h.Shares) != 3 || h.Shares[0] != want[0] || h.Shares[1] != want[1] || h.Shares[2] != want[2] {
 		t.Errorf("shares = %+v, want %+v", h.Shares, want)
 	}
 }

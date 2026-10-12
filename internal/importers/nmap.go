@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+const (
+	minPort = 1
+	maxPort = 65535
+)
+
 type nmapRun struct {
 	Hosts []nmapHost `xml:"host"`
 }
@@ -55,17 +60,24 @@ func parseNmap(data []byte) (Result, error) {
 		return Result{}, fmt.Errorf("decode nmap XML: %w", err)
 	}
 	hosts := make([]HostResult, 0, len(run.Hosts))
+	skipped := 0
 	for _, h := range run.Hosts {
 		if h.Status.State == "down" {
 			continue
 		}
-		hosts = append(hosts, nmapHostResult(h))
+		hr, bad := nmapHostResult(h)
+		hosts = append(hosts, hr)
+		skipped += bad
 	}
-	return Result{Tool: ToolNmap, Hosts: hosts}, nil
+	return Result{Tool: ToolNmap, Hosts: hosts, Skipped: skipped}, nil
 }
 
-func nmapHostResult(h nmapHost) HostResult {
+// nmapHostResult converts one host; skipped counts ports whose id is not a number in 1..65535.
+//
+//nolint:gocritic // results are host, skipped; nonamedreturns bans naming them
+func nmapHostResult(h nmapHost) (HostResult, int) {
 	out := HostResult{IP: nmapIP(h.Addresses)}
+	skipped := 0
 	if len(h.Hostnames) > 0 {
 		out.Hostname = h.Hostnames[0].Name
 	}
@@ -74,7 +86,11 @@ func nmapHostResult(h nmapHost) HostResult {
 	}
 	for _, p := range h.Ports {
 		port, err := strconv.Atoi(p.PortID)
-		if p.State.State != "open" || err != nil {
+		if err != nil || port < minPort || port > maxPort {
+			skipped++
+			continue
+		}
+		if p.State.State != "open" {
 			continue
 		}
 		out.Services = append(out.Services, ServiceResult{
@@ -85,7 +101,7 @@ func nmapHostResult(h nmapHost) HostResult {
 			Version:  p.Service.Version,
 		})
 	}
-	return out
+	return out, skipped
 }
 
 // nmapIP returns the first ipv4/ipv6 address, ignoring MAC addresses.

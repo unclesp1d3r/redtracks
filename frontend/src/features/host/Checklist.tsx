@@ -47,6 +47,12 @@ function ChecklistRow({ item, onSet, targetIp, domain }: RowProps) {
   const status = item.State.status || ItemStatus.ItemTodo;
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState(item.State.note);
+  // Follow an external note edit unless the user has typed something here.
+  const [syncedNote, setSyncedNote] = useState(item.State.note);
+  if (syncedNote !== item.State.note) {
+    setSyncedNote(item.State.note);
+    if (note === syncedNote) setNote(item.State.note);
+  }
   const isStruck = status === ItemStatus.ItemNA;
 
   function toggle(e: KeyboardEvent<HTMLLIElement>) {

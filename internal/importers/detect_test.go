@@ -18,7 +18,6 @@ func readFixture(t *testing.T, name string) []byte {
 }
 
 func TestDetectAllFixtures(t *testing.T) {
-	// Extended by later units as they add fixtures.
 	table := map[string]string{
 		"nmap-localhost.xml":   "nmap",
 		"nmap-subnet-down.xml": "nmap",
@@ -85,6 +84,8 @@ func TestParseGarbageReturnsDetectionError(t *testing.T) {
 	}
 }
 
+// TestParseDetectedToolWithoutParser swaps the package-level parsers map, so
+// it must never run with t.Parallel.
 func TestParseDetectedToolWithoutParser(t *testing.T) {
 	saved := parsers
 	parsers = map[string]func([]byte) (Result, error){}

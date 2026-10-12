@@ -6,6 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { hostsOf } from "@/lib/api";
 import { useEngagementQuery, useSummariesQuery } from "@/lib/query";
+import { ChecklistStatus } from "../host/ChecklistStatus";
 import { AddHostDialog } from "./AddHostDialog";
 import { AttackGraph } from "./AttackGraph";
 import { HostRow } from "./HostRow";
@@ -40,6 +41,7 @@ export function BoardPage() {
           <PlusIcon /> Add host
         </Button>
       </div>
+      <ChecklistStatus />
       <AttackGraph />
       <QueryStates query={summaries} isEmpty={(s) => s.length === 0} empty={empty}>
         {(rows) => (

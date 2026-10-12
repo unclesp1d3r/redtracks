@@ -20,25 +20,27 @@ func metaPath(dir string) string     { return filepath.Join(dir, metaFile) }
 func credsPath(dir string) string    { return filepath.Join(dir, credsFile) }
 func findingsPath(dir string) string { return filepath.Join(dir, findingsFile) }
 
-// validateIP rejects anything that is not a plain IP address. A zone ("%eth0")
-// is rejected too because it can contain path separators.
-func validateIP(ip string) error {
+// validateIP rejects anything that is not a plain IP address and returns its
+// canonical text form ("FE80::1" becomes "fe80::1"). A zone ("%eth0") is
+// rejected because it can contain path separators.
+func validateIP(ip string) (string, error) {
 	addr, err := netip.ParseAddr(ip)
 	if err != nil {
-		return fmt.Errorf("invalid host ip %q: %w", ip, err)
+		return "", fmt.Errorf("invalid host ip %q: %w", ip, err)
 	}
 	if addr.Zone() != "" {
-		return fmt.Errorf("invalid host ip %q: zones are not allowed", ip)
+		return "", fmt.Errorf("invalid host ip %q: zones are not allowed", ip)
 	}
-	return nil
+	return addr.String(), nil
 }
 
 // hostDir returns hosts/<ip> under dir, or an error if ip is not an address.
 func hostDir(dir, ip string) (string, error) {
-	if err := validateIP(ip); err != nil {
+	canon, err := validateIP(ip)
+	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, hostsDir, ip), nil
+	return filepath.Join(dir, hostsDir, canon), nil
 }
 
 // hostPath returns the host.json path for ip.

@@ -7,7 +7,7 @@ import { hostPath, type HostSummary } from "@/lib/api";
 export interface UntriedCred {
   id: string;
   username: string;
-  /** IP or hostname of the host the credential was found on; empty when unknown. */
+  /** Hostname (IP when unnamed) of the host the credential was found on; empty when unknown. */
   foundOn: string;
 }
 

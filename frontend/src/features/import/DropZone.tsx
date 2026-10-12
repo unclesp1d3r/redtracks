@@ -1,5 +1,6 @@
 import { useRef, useState, type DragEvent } from "react";
 import { UploadIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ImportService, errorMessage, type PreviewResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -35,8 +36,12 @@ export function DropZone({ onPreview }: Props) {
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) void handle(file);
+    const [file, ...rest] = Array.from(e.dataTransfer.files);
+    if (!file) return;
+    if (rest.length > 0) {
+      toast.warning(`Only one file is imported at a time. Importing ${file.name}; ignored ${rest.map((f) => f.name).join(", ")}.`);
+    }
+    void handle(file);
   };
 
   return (

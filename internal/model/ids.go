@@ -1,4 +1,3 @@
-// Package model defines the RedTracks domain types and their on-disk JSON shape.
 package model
 
 import "crypto/rand"

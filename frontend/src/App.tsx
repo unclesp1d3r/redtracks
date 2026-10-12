@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createHashRouter, RouterProvider } from "react-router";
 import { AppShell } from "@/components/AppShell";
 import { RequireEngagement } from "@/components/RequireEngagement";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BoardPage } from "@/features/board/BoardPage";
 import { EngagementsPage } from "@/features/engagements/EngagementsPage";
@@ -37,6 +38,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <RouterProvider router={router} />
+        <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -7,7 +7,9 @@ import wails from "@wailsio/runtime/plugins/vite";
 // Content Security Policy for production builds only. Vite's dev server injects an
 // inline React refresh script that script-src 'self' would block, so the policy is
 // added at build time rather than in index.html. 'unsafe-inline' styles are needed
-// by Mermaid and shadcn; ws:/wss: is the Wails event channel in server mode.
+// by the <style> block Mermaid emits inside its SVG and by the inline style=
+// positioning Base UI popovers and selects set; ws:/wss: is the Wails event
+// channel in server mode. frame-ancestors is omitted: it is ignored in a meta CSP.
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
@@ -18,7 +20,6 @@ const CSP = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'none'",
 ].join("; ");
 
 function cspPlugin(): Plugin {
@@ -34,7 +35,6 @@ function cspPlugin(): Plugin {
   };
 }
 
-// https://vitejs.dev/config/
 export default defineConfig({
   resolve: {
     alias: { "@": path.resolve(import.meta.dirname, "./src") },

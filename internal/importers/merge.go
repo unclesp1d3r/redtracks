@@ -1,6 +1,7 @@
 package importers
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -23,14 +24,17 @@ const (
 	BadgeDuplicate Badge = "duplicate"
 )
 
+// RowKind is what sort of record a preview Row describes.
+type RowKind string
+
 // Row kinds.
 const (
-	kindHost    = "host"
-	kindService = "service"
-	kindWebPath = "webpath"
-	kindFinding = "finding"
-	kindUser    = "user"
-	kindShare   = "share"
+	RowKindHost    RowKind = "host"
+	RowKindService RowKind = "service"
+	RowKindWebPath RowKind = "webpath"
+	RowKindFinding RowKind = "finding"
+	RowKindUser    RowKind = "user"
+	RowKindShare   RowKind = "share"
 )
 
 const (
@@ -39,12 +43,11 @@ const (
 	schemeHTTP       = "http"
 	schemeHTTPS      = "https"
 	protocolTCP      = "tcp"
-	statusNoted      = "noted"
 )
 
 // Row is one line of the import preview.
 type Row struct {
-	Kind   string // host|service|webpath|finding|user|share
+	Kind   RowKind
 	HostIP string
 	Badge  Badge
 	Label  string
@@ -63,6 +66,11 @@ type Preview struct {
 	Tool       string
 	Rows       []Row
 	Unresolved []Unresolved
+	// Dropped lists the invalid IP strings the parser output carried; those
+	// hosts are not imported.
+	Dropped []string
+	// Skipped counts rows a parser could not read (for example a non-numeric port).
+	Skipped int
 }
 
 // target is a HostResult placed on an engagement host IP and web port.
@@ -123,10 +131,11 @@ func (b baseURL) webPort() int {
 // BuildPreview computes the rows an import of res would produce against eng.
 func BuildPreview(eng model.Engagement, res Result, overrides map[string]string) Preview {
 	targets, unresolved := resolveAll(eng, res, overrides)
-	return buildPreview(eng, res.Tool, targets, unresolved)
+	return buildPreview(eng, res, targets, unresolved)
 }
 
-func buildPreview(eng model.Engagement, tool string, targets []target, unresolved []Unresolved) Preview {
+func buildPreview(eng model.Engagement, res Result, targets []target, unresolved []Unresolved) Preview {
+	tool := res.Tool
 	work := eng
 	work.Hosts = slices.Clone(eng.Hosts)
 	rows := []Row{}
@@ -135,7 +144,11 @@ func buildPreview(eng model.Engagement, tool string, targets []target, unresolve
 		work, r = previewTarget(work, t, tool)
 		rows = append(rows, r...)
 	}
-	return Preview{Tool: tool, Rows: rows, Unresolved: unresolved}
+	dropped := slices.Clone(res.DroppedIPs)
+	if dropped == nil {
+		dropped = []string{}
+	}
+	return Preview{Tool: tool, Rows: rows, Unresolved: unresolved, Dropped: dropped, Skipped: res.Skipped}
 }
 
 // previewTarget merges one target into a working copy of the engagement.
@@ -168,16 +181,18 @@ func newHost(ip string) model.Host {
 func Apply(st *store.Store, res Result, overrides map[string]string, raw []byte) (Preview, error) {
 	eng := st.Engagement()
 	targets, unresolved := resolveAll(eng, res, overrides)
-	preview := buildPreview(eng, res.Tool, targets, unresolved)
-	for _, t := range targets {
+	preview := buildPreview(eng, res, targets, unresolved)
+	for i, t := range targets {
 		_, exists := eng.Host(t.ip)
 		if err := writeTarget(st, t, res.Tool, exists); err != nil {
-			return preview, fmt.Errorf("import %s into %s: %w", res.Tool, t.ip, err)
+			return preview, fmt.Errorf("import %s into %s failed after writing %d of %d hosts "+
+				"(confirming again retries safely): %w", res.Tool, t.ip, i, len(targets), err)
 		}
 	}
 	if len(targets) > 0 && len(raw) > 0 {
 		if _, err := st.SaveImport(targets[0].ip, res.Tool, raw); err != nil {
-			return preview, fmt.Errorf("save raw %s output: %w", res.Tool, err)
+			return preview, fmt.Errorf("all %d hosts were written but saving the raw %s output failed "+
+				"(confirming again retries safely): %w", len(targets), res.Tool, err)
 		}
 	}
 	return preview, nil
@@ -207,7 +222,10 @@ func writeTarget(st *store.Store, t target, tool string, exists bool) error {
 			return err
 		}
 	}
-	host, _ := st.Engagement().Host(t.ip)
+	host, ok := st.Engagement().Host(t.ip)
+	if !ok {
+		return fmt.Errorf("host %s not found after writing it", t.ip)
+	}
 	if len(t.host.Users)+len(t.host.Shares) > 0 {
 		err := st.MutateCreds(func(c *model.Creds) error {
 			*c, _ = mergeCreds(*c, host.ID, t)
@@ -252,12 +270,13 @@ func resolveHost(eng model.Engagement, tool string, hr HostResult, overrides map
 		return t, nil
 	}
 	key := tool
-	if u.host != "" {
-		if ip, ok := engagementHostIP(eng, u.host); ok {
+	name := cmp.Or(u.host, hr.Hostname)
+	if name != "" {
+		if ip, ok := engagementHostIP(eng, name); ok {
 			t.ip = ip
 			return t, nil
 		}
-		key = u.host
+		key = name
 	}
 	if ip, port, ok := parseOverride(overrides[key]); ok {
 		t.ip = ip
@@ -322,7 +341,7 @@ func mergeHost(h model.Host, t target, tool string, isNew bool) (model.Host, []R
 	if out.Hostname != "" {
 		label += " (" + out.Hostname + ")"
 	}
-	rows := []Row{{Kind: kindHost, HostIP: out.IP, Badge: badgeFor(isNew, filled), Label: label}}
+	rows := []Row{{Kind: RowKindHost, HostIP: out.IP, Badge: badgeFor(isNew, filled), Label: label}}
 	out.Services = slices.Clone(h.Services)
 	for _, sr := range t.host.Services {
 		var row Row
@@ -361,7 +380,9 @@ func ensureWebServices(h *model.Host, t target) []Row {
 }
 
 func serviceIndex(svcs []model.Service, port int, proto string) int {
-	return slices.IndexFunc(svcs, func(s model.Service) bool { return s.Port == port && s.Protocol == proto })
+	return slices.IndexFunc(svcs, func(s model.Service) bool {
+		return s.Port == port && cmp.Or(s.Protocol, protocolTCP) == proto // hand-edited services may omit protocol
+	})
 }
 
 // upsertService matches by port and protocol and fills empty fields only.
@@ -377,14 +398,14 @@ func upsertService(svcs []model.Service, sr ServiceResult) ([]model.Service, Row
 			ID: model.NewID(), Port: sr.Port, Protocol: proto, Type: sr.Type,
 			Product: sr.Product, Version: sr.Version, WebPaths: []model.WebPath{},
 		}
-		return append(out, s), Row{Kind: kindService, Badge: BadgeNew, Label: s.Label()}
+		return append(out, s), Row{Kind: RowKindService, Badge: BadgeNew, Label: s.Label()}
 	}
 	s := out[i]
 	filled := fillEmpty(&s.Type, sr.Type)
 	filled = fillEmpty(&s.Product, sr.Product) || filled
 	filled = fillEmpty(&s.Version, sr.Version) || filled
 	out[i] = s
-	return out, Row{Kind: kindService, Badge: badgeFor(false, filled), Label: s.Label()}
+	return out, Row{Kind: RowKindService, Badge: badgeFor(false, filled), Label: s.Label()}
 }
 
 // mergeWebPaths adds t's web paths to the service on t.port, deduplicated by path and status.
@@ -403,7 +424,7 @@ func mergeWebPaths(h *model.Host, t target, tool string) []Row {
 			badge = BadgeNew
 		}
 		label := fmt.Sprintf("%s (%d)", w.Path, w.Status)
-		rows = append(rows, Row{Kind: kindWebPath, HostIP: h.IP, Badge: badge, Label: label})
+		rows = append(rows, Row{Kind: RowKindWebPath, HostIP: h.IP, Badge: badge, Label: label})
 	}
 	svc.WebPaths = paths
 	h.Services = slices.Clone(h.Services)
@@ -427,10 +448,10 @@ func mergeFindings(all []model.Finding, h model.Host, t target, tool string) ([]
 		if !isDup {
 			out = append(out, model.Finding{
 				ID: model.NewID(), HostID: h.ID, ServiceID: serviceID, Title: f.Title,
-				Severity: f.Severity, Source: tool, Evidence: f.Evidence, Status: statusNoted,
+				Severity: f.Severity, Source: tool, Evidence: f.Evidence, Status: model.FindingNoted,
 			})
 		}
-		rows = append(rows, Row{Kind: kindFinding, HostIP: h.IP, Badge: badgeFor(!isDup, false), Label: f.Title})
+		rows = append(rows, Row{Kind: RowKindFinding, HostIP: h.IP, Badge: badgeFor(!isDup, false), Label: f.Title})
 	}
 	return out, rows
 }
@@ -448,7 +469,7 @@ func mergeCreds(c model.Creds, hostID string, t target) (model.Creds, []Row) {
 		} else {
 			filled = fillEmpty(&out.Users[i].Domain, u.Domain)
 		}
-		rows = append(rows, Row{Kind: kindUser, HostIP: t.ip, Badge: badgeFor(i < 0, filled), Label: u.Name})
+		rows = append(rows, Row{Kind: RowKindUser, HostIP: t.ip, Badge: badgeFor(i < 0, filled), Label: u.Name})
 	}
 	for _, s := range t.host.Shares {
 		i := slices.IndexFunc(out.Shares, func(e model.Share) bool { return e.HostID == hostID && e.Name == s.Name })
@@ -459,7 +480,7 @@ func mergeCreds(c model.Creds, hostID string, t target) (model.Creds, []Row) {
 		} else {
 			filled = fillEmpty(&out.Shares[i].Access, s.Access)
 		}
-		rows = append(rows, Row{Kind: kindShare, HostIP: t.ip, Badge: badgeFor(i < 0, filled), Label: s.Name})
+		rows = append(rows, Row{Kind: RowKindShare, HostIP: t.ip, Badge: badgeFor(i < 0, filled), Label: s.Name})
 	}
 	return out, rows
 }

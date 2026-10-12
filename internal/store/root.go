@@ -22,16 +22,17 @@ const (
 // nonSlug matches each run of characters that cannot appear in a folder slug.
 var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
 
-// RootDir returns $REDTRACKS_HOME, or ~/RedTracks when it is unset.
-func RootDir() string {
+// RootDir returns $REDTRACKS_HOME, or ~/RedTracks when it is unset. It fails
+// when there is no home directory rather than guessing a relative path.
+func RootDir() (string, error) {
 	if v := os.Getenv(rootEnv); v != "" {
-		return v
+		return v, nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return rootDefaultName
+		return "", fmt.Errorf("find home directory (set %s to choose a root): %w", rootEnv, err)
 	}
-	return filepath.Join(home, rootDefaultName)
+	return filepath.Join(home, rootDefaultName), nil
 }
 
 // Summary describes one engagement folder for the picker.
@@ -43,21 +44,42 @@ type Summary struct {
 	CreatedAt time.Time
 }
 
+// BrokenEngagement is an engagement folder that could not be summarised.
+type BrokenEngagement struct {
+	Dir   string
+	Error string
+}
+
 // ListEngagements scans root/engagements, newest first. A missing directory is
-// an empty list; folders without engagement.json are skipped. Folders whose
-// engagement.json cannot be parsed are left out and reported in the error,
-// alongside the rest of the list.
+// an empty list; folders without engagement.json are skipped. Folders that
+// cannot be read or parsed are left out and reported in the error, alongside
+// the rest of the list.
 func ListEngagements(root string) ([]Summary, error) {
+	sums, broken, err := ListEngagementsDetailed(root)
+	if err != nil {
+		return nil, err
+	}
+	errs := make([]error, len(broken))
+	for i, b := range broken {
+		errs[i] = errors.New(b.Error)
+	}
+	return sums, errors.Join(errs...)
+}
+
+// ListEngagementsDetailed is ListEngagements with the unreadable folders
+// returned as data. The error is only for a failure to read the engagements
+// directory itself.
+func ListEngagementsDetailed(root string) ([]Summary, []BrokenEngagement, error) {
 	base := filepath.Join(root, engagementsDir)
 	entries, err := os.ReadDir(base)
 	if errors.Is(err, os.ErrNotExist) {
-		return []Summary{}, nil
+		return []Summary{}, []BrokenEngagement{}, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", base, err)
+		return nil, nil, fmt.Errorf("read %s: %w", base, err)
 	}
 	out := []Summary{}
-	var errs []error
+	broken := []BrokenEngagement{}
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -65,7 +87,7 @@ func ListEngagements(root string) ([]Summary, error) {
 		dir := filepath.Join(base, e.Name())
 		sum, ok, err := summarize(dir)
 		if err != nil {
-			errs = append(errs, err)
+			broken = append(broken, BrokenEngagement{Dir: dir, Error: err.Error()})
 			continue
 		}
 		if ok {
@@ -73,11 +95,10 @@ func ListEngagements(root string) ([]Summary, error) {
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].CreatedAt.After(out[j].CreatedAt) })
-	return out, errors.Join(errs...)
+	return out, broken, nil
 }
 
 // summarize reads dir's engagement.json; ok is false when there is none.
-
 func summarize(dir string) (Summary, bool, error) {
 	path := metaPath(dir)
 	data, err := readOptional(path)
@@ -88,28 +109,42 @@ func summarize(dir string) (Summary, bool, error) {
 	if err := decodeJSON(path, data, &meta); err != nil {
 		return Summary{}, false, err
 	}
+	hosts, err := countHosts(dir)
+	if err != nil {
+		return Summary{}, false, err
+	}
 	return Summary{
 		Dir:       dir,
 		Name:      meta.Name,
 		Type:      meta.Type,
-		Hosts:     countHosts(dir),
+		Hosts:     hosts,
 		CreatedAt: meta.CreatedAt,
 	}, true, nil
 }
 
 // countHosts counts hosts/*/host.json files.
-func countHosts(dir string) int {
-	entries, err := os.ReadDir(filepath.Join(dir, hostsDir))
+func countHosts(dir string) (int, error) {
+	root := filepath.Join(dir, hostsDir)
+	entries, err := os.ReadDir(root)
+	if errors.Is(err, os.ErrNotExist) {
+		return 0, nil
+	}
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("read %s: %w", root, err)
 	}
 	n := 0
 	for _, e := range entries {
-		if _, err := os.Stat(filepath.Join(dir, hostsDir, e.Name(), hostFile)); err == nil {
-			n++
+		path := filepath.Join(root, e.Name(), hostFile)
+		_, err := os.Stat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
 		}
+		if err != nil {
+			return 0, fmt.Errorf("stat %s: %w", path, err)
+		}
+		n++
 	}
-	return n
+	return n, nil
 }
 
 // slugify lowercases name and collapses runs of other characters to one dash.
