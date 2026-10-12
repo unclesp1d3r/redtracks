@@ -310,8 +310,11 @@ tasks:
   run:docker:
     summary: Builds and runs the Docker image
     desc: |
-      Builds the Docker image and runs it, exposing port 8080.
-      Usage: task run:docker [TAG=myapp:latest] [PORT=8080]
+      Builds the Docker image and runs it, publishing port 8080 on 127.0.0.1 only.
+      Engagement data lives in DATA_DIR on the host (default ./.redtracks-data),
+      bind-mounted at /data with REDTRACKS_HOME=/data, and the container runs
+      as the invoking host user so it can write there.
+      Usage: task run:docker [TAG=myapp:latest] [PORT=8080] [DATA_DIR=./.redtracks-data]
       Note: The internal container port is always 8080. The PORT variable
       only changes the host port mapping. Ensure your app uses port 8080
       or modify the Dockerfile to match your ServerOptions.Port setting.
@@ -321,10 +324,18 @@ tasks:
           TAG:
             ref: .TAG
     cmds:
-      - docker run --rm -p {{.PORT | default "8080"}}:8080 {{.TAG | default (printf "%s:latest" .APP_NAME)}}
+      - mkdir -p "{{.DATA_DIR | default "./.redtracks-data"}}"
+      - >-
+        docker run --rm
+        --user "$(id -u):$(id -g)"
+        -p 127.0.0.1:{{.PORT | default "8080"}}:8080
+        -v "$(cd "{{.DATA_DIR | default "./.redtracks-data"}}" && pwd):/data"
+        -e REDTRACKS_HOME=/data
+        {{.TAG | default (printf "%s:latest" .APP_NAME)}}
     vars:
       TAG: "{{.TAG}}"
       PORT: "{{.PORT}}"
+      DATA_DIR: "{{.DATA_DIR}}"
 
   setup:docker:
     summary: Builds Docker image for cross-compilation (~800MB download)

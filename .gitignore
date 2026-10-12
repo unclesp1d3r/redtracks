@@ -1,10 +1,11 @@
 # Re-include paths that common global gitignores hide. build/ holds Wails
-# packaging config (not output), and the tables UI has a CredentialsTable.
+# packaging config (not output), and the tables UI has CredentialsTable.tsx.
+# The pattern stays narrow so a real credentials file is still ignored.
 !build/
-!*credentials*
-!*Credentials*
+!*CredentialsTable*
 
 .task
+.redtracks-data/
 bin/
 frontend/dist/
 frontend/node_modules/

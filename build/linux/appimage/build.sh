@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (c) 2018-Present Lea Anthony
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 
 # Fail script on any error
 set -euxo pipefail

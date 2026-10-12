@@ -21,7 +21,7 @@ tasks:
     summary: Runs Go and frontend tests
     deps: [common:generate:bindings]
     cmds:
-      - go test ./...
+      - go test -race ./...
       - cd frontend && bun run vitest run
 
   lint:
@@ -29,7 +29,7 @@ tasks:
     deps: [common:generate:bindings]
     cmds:
       - go vet ./...
-      - mise exec -- golangci-lint run ./...
+      - mise exec golangci-lint -- golangci-lint run ./...
       - cd frontend && bunx tsc --noEmit
 
   e2e:

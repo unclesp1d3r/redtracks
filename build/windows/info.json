@@ -5,11 +5,11 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
-			"FileDescription": "A redtracks application",
-			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
-			"Comments": "This is a comment"
+			"CompanyName": "UncleSp1d3r",
+			"FileDescription": "Offline engagement tracker for pentests and CTFs",
+			"LegalCopyright": "(c) 2026, UncleSp1d3r",
+			"ProductName": "RedTracks",
+			"Comments": "Hosts, services, flags, credentials, and what is left to try, in plain files with no network"
 		}
 	}
 }

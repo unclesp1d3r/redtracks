@@ -10,13 +10,13 @@
     <Installer
         Path="redtracks"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\UncleSp1d3r\RedTracks">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
+        PackageName="RedTracks"
+        PackageDisplayName="RedTracks"
+        PublisherName="CN=UncleSp1d3r"
+        PublisherDisplayName="UncleSp1d3r"
         Version="0.1.0.0"
         PackageDescription="A redtracks application">
         <Capabilities>
@@ -25,9 +25,9 @@
         </Capabilities>
         <Applications>
             <Application
-                Id="com.example.redtracks"
+                Id="io.github.unclesp1d3r.redtracks"
                 Description="A redtracks application"
-                DisplayName="My Product"
+                DisplayName="RedTracks"
                 ExecutableName="redtracks"
                 EntryPoint="Windows.FullTrustApplication">
                 
@@ -41,8 +41,8 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
+            <DisplayName>RedTracks</DisplayName>
+            <PublisherDisplayName>UncleSp1d3r</PublisherDisplayName>
             <Description>A redtracks application</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
