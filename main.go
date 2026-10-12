@@ -5,6 +5,8 @@ import (
 	"embed"
 	"log"
 
+	"github.com/unclesp1d3r/redtracks/internal/app"
+	"github.com/unclesp1d3r/redtracks/internal/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -24,11 +26,22 @@ const (
 var assets embed.FS
 
 func main() {
-	app := application.New(application.Options{
+	backend, err := app.New(store.RootDir())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	wailsApp := application.New(application.Options{
 		Name:        appName,
 		Description: "Offline pentest and CTF engagement tracker",
-		// Register backend services here.
-		Services: []application.Service{},
+		Services: []application.Service{
+			application.NewService(app.NewEngagementService(backend)),
+			application.NewService(app.NewHostService(backend)),
+			application.NewService(app.NewImportService(backend)),
+			application.NewService(app.NewChecklistService(backend)),
+		},
+		// Localhost-only and unauthenticated by design: single-operator machine, browser fallback.
+		Server: application.ServerOptions{Host: "localhost"},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},
@@ -37,7 +50,9 @@ func main() {
 		},
 	})
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	backend.SetEmitter(func(name string, data any) { wailsApp.Event.Emit(name, data) })
+
+	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  appName,
 		Width:  windowWidth,
 		Height: windowHeight,
@@ -50,7 +65,7 @@ func main() {
 		URL:              "/",
 	})
 
-	if err := app.Run(); err != nil {
+	if err := wailsApp.Run(); err != nil {
 		log.Fatal(err)
 	}
 }

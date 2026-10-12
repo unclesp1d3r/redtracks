@@ -1,0 +1,232 @@
+package app
+
+import (
+	"encoding/base64"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/unclesp1d3r/redtracks/internal/model"
+	"github.com/unclesp1d3r/redtracks/internal/store"
+)
+
+const nmapFixture = "../importers/testdata/nmap-localhost.xml"
+
+func TestSetItemPersists(t *testing.T) {
+	f := openSample(t)
+	a, dir := f.app, f.dir
+	h := NewHostService(a)
+
+	if err := h.SetItem(sampleHost, "", "recon.ping", model.ItemDone, "ok"); err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, _ := st.Engagement().Host(sampleHost)
+	got := host.Checklist.Items["recon.ping"]
+	if got.Status != model.ItemDone || got.UpdatedAt == "" || got.Note != "ok" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestMarkTriedAppendsOnce(t *testing.T) {
+	a := openSample(t).app
+	e := NewEngagementService(a)
+	cur := current(t, a)
+	id := cur.Creds.Credentials[0].ID
+
+	for range 2 {
+		if err := e.MarkTried(id, "10.10.10.9", false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.MarkTried(id, "10.10.10.9", true); err != nil {
+		t.Fatal(err)
+	}
+
+	cur = current(t, a)
+	c := cur.Creds.Credentials[0]
+	count := 0
+	for _, h := range c.TriedOn {
+		if h == "10.10.10.9" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("TriedOn %v", c.TriedOn)
+	}
+	if len(c.WorksOn) == 0 || c.WorksOn[len(c.WorksOn)-1] != "10.10.10.9" {
+		t.Fatalf("WorksOn %v", c.WorksOn)
+	}
+}
+
+func TestImportPreviewThenApply(t *testing.T) {
+	a := openSample(t).app
+	raw, err := os.ReadFile(nmapFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := NewImportService(a)
+
+	resp, err := s.PreviewData("nmap.xml", base64.StdEncoding.EncodeToString(raw))
+	if err != nil || resp.Token == "" {
+		t.Fatalf("preview: %v %+v", err, resp)
+	}
+	if _, err := s.Apply(resp.Token, nil); err != nil {
+		t.Fatal(err)
+	}
+	cur := current(t, a)
+	if _, ok := cur.Host("127.0.0.1"); !ok {
+		t.Fatal("host 127.0.0.1 missing")
+	}
+	if _, err := s.Apply(resp.Token, nil); err == nil || !strings.Contains(err.Error(), "unknown token") {
+		t.Fatalf("second apply: %v", err)
+	}
+}
+
+func TestPreviewDataRejectsOversize(t *testing.T) {
+	a := openSample(t).app
+	big := base64.StdEncoding.EncodeToString(make([]byte, maxImportBytes+1))
+	if _, err := NewImportService(a).PreviewData("big", big); err == nil {
+		t.Fatal("want size error")
+	}
+}
+
+func TestUpdateServiceKeepsChecklist(t *testing.T) {
+	a := openSample(t).app
+	h := NewHostService(a)
+	cur := current(t, a)
+	host, _ := cur.Host(sampleHost)
+	stale := host.Services[0]
+
+	if err := h.SetItem(sampleHost, stale.ID, "http.robots", model.ItemDone, ""); err != nil {
+		t.Fatal(err)
+	}
+	stale.Notes = "edited"
+	if err := h.UpdateService(sampleHost, stale); err != nil {
+		t.Fatal(err)
+	}
+
+	cur = current(t, a)
+	host, _ = cur.Host(sampleHost)
+	svc := host.Services[0]
+	if svc.Checklist.Items["http.robots"].Status != model.ItemDone || svc.Notes != "edited" {
+		t.Fatalf("got %+v", svc)
+	}
+}
+
+func TestOpenTwiceStopsFirstPoller(t *testing.T) {
+	f := newTestApp(t)
+	a, dirA := f.app, f.dir
+	ev := &events{}
+	a.SetEmitter(ev.emit)
+	e := NewEngagementService(a)
+	dirB, err := e.Create("second", "", model.EngagementLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Open(dirA); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Open(dirB); err != nil {
+		t.Fatal(err)
+	}
+	before := ev.count(eventChanged)
+
+	notes := filepath.Join(dirA, "notes.md")
+	if err := os.WriteFile(notes, []byte("changed"), logFileMode); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(time.Minute)
+	if err := os.Chtimes(filepath.Join(dirA, "creds.json"), future, future); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(200 * time.Millisecond)
+
+	if got := ev.count(eventChanged); got != before {
+		t.Fatalf("changed events %d -> %d", before, got)
+	}
+}
+
+func TestOpenRejectsOutsideEngagements(t *testing.T) {
+	a := newTestApp(t).app
+	for _, dir := range []string{a.Root, filepath.Join(a.Root, engagementsDir, "pg-sample", "hosts"), "/tmp"} {
+		if _, err := NewEngagementService(a).Open(dir); err == nil {
+			t.Fatalf("Open(%q) should fail", dir)
+		}
+	}
+}
+
+func TestWriteNotesConflictMessage(t *testing.T) {
+	a := openSample(t).app
+	e := NewEngagementService(a)
+	err := e.WriteNotes(sampleHost, "x", "stale-hash")
+	if err == nil || !strings.HasPrefix(err.Error(), "conflict") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestStoreErrorsWithoutEngagement(t *testing.T) {
+	a := newTestApp(t).app
+	if _, err := a.Store(); err == nil || err.Error() != "no engagement open" {
+		t.Fatalf("got %v", err)
+	}
+	if err := NewHostService(a).Add("10.0.0.1", "x"); err == nil {
+		t.Fatal("want error")
+	}
+}
+
+func TestNewInstallsDefaults(t *testing.T) {
+	root := t.TempDir()
+	a, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = a.Close() }()
+	files, err := filepath.Glob(filepath.Join(root, checklistsDir, "*.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 10 {
+		t.Fatalf("installed %d definition files", len(files))
+	}
+	if len(a.Definitions()) != 10 {
+		t.Fatalf("loaded %d definitions", len(a.Definitions()))
+	}
+}
+
+func TestNewSurvivesBadDefinition(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, checklistsDir)
+	if err := os.MkdirAll(dir, dirMode); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "bad.json"), []byte("{"), logFileMode); err != nil {
+		t.Fatal(err)
+	}
+	a, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = a.Close() }()
+	if len(a.Definitions()) != 0 {
+		t.Fatalf("want no definitions, got %d", len(a.Definitions()))
+	}
+	logged, err := os.ReadFile(filepath.Join(root, logFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(logged), "bad.json") {
+		t.Fatalf("error not logged: %s", logged)
+	}
+	ev := &events{}
+	a.SetEmitter(ev.emit)
+	if ev.count(eventError) == 0 {
+		t.Fatal("definitions error not emitted")
+	}
+}
