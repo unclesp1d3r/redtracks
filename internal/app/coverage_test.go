@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
+	"github.com/unclesp1d3r/redtracks/internal/store"
 )
 
 // waitFor polls cond until it holds or waitTimeout passes.
@@ -256,5 +257,28 @@ func TestApplyPartialFailureKeepsTokenAndSavesNoRaw(t *testing.T) {
 	}
 	if raws := globFiles(t, rawGlob); len(raws) != 1 {
 		t.Fatalf("raw files %v, want exactly one after the retry", raws)
+	}
+}
+
+func TestApplyRefusesPreviewFromAnotherStore(t *testing.T) {
+	f := openSample(t)
+	imp := NewImportService(f.app)
+	resp := previewNmap(t, imp)
+	other, err := store.Open(f.dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imp.mu.Lock()
+	p := imp.pending[resp.Token]
+	p.store = other
+	imp.pending[resp.Token] = p
+	imp.mu.Unlock()
+
+	_, err = imp.Apply(resp.Token, nil)
+	if !errors.Is(err, errStaleImport) {
+		t.Fatalf("Apply err = %v, want errStaleImport", err)
+	}
+	if _, ok := imp.lookup(resp.Token); !ok {
+		t.Fatal("a refused apply must keep the token")
 	}
 }

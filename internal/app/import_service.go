@@ -20,9 +20,13 @@ const (
 	maxPendingImports = 8
 )
 
-var errUnknownToken = errors.New("unknown token")
+var (
+	errUnknownToken = errors.New("unknown token")
+	errStaleImport  = errors.New("the engagement changed since this preview; preview the file again")
+)
 
 type pendingImport struct {
+	store  *store.Store // the engagement the preview was computed against
 	result importers.Result
 	raw    []byte
 }
@@ -86,7 +90,7 @@ func (s *ImportService) preview(raw []byte) (PreviewResponse, error) {
 	}
 	token := model.NewID()
 	s.mu.Lock()
-	s.pending[token] = pendingImport{result: res, raw: raw}
+	s.pending[token] = pendingImport{store: st, result: res, raw: raw}
 	s.order = append(s.order, token)
 	for len(s.order) > maxPendingImports {
 		delete(s.pending, s.order[0])
@@ -103,6 +107,9 @@ func (s *ImportService) Apply(token string, overrides map[string]string) (import
 		p, ok := s.lookup(token)
 		if !ok {
 			return fmt.Errorf("%w %q", errUnknownToken, token)
+		}
+		if p.store != st { // Open swapped the store between lookup and this call
+			return errStaleImport
 		}
 		var aerr error
 		if out, aerr = importers.Apply(st, p.result, overrides, p.raw); aerr != nil {
