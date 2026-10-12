@@ -29,17 +29,8 @@ linters:
     - errname
     - errorlint
     - exhaustive
-    # - exhaustruct - Disabled: the project's idiom for declarative data (compliance
-    #   plugin Control tables, diff/sanitizer rule lists, config validation records)
-    #   is partial struct literals with intentionally zero-valued optional fields.
-    #   Exhaustruct flags 500+ of these as "missing fields" across internal/plugins/,
-    #   internal/diff/, internal/sanitizer/rules.go, internal/config/validation.go,
-    #   and internal/*/example.go. Fighting this would require either hundreds of
-    #   //nolint directives or a brittle struct-name exclude list. Go's zero-value
-    #   guarantee already covers the "forgot to initialize" case exhaustruct is
-    #   designed to catch, so the safety gain does not justify the maintenance cost.
+    # exhaustruct is off: partial struct literals with zero-valued optional fields are the idiom here.
     - exptostd
-    - ginkgolinter
     - fatcontext
     - forbidigo
     - funcorder
@@ -73,32 +64,16 @@ linters:
     - nonamedreturns
     - nosprintfhostport
     - perfsprint
-    # - prealloc - Disabled: this can be premature optimization. Probed 2026-04-19:
-    #   12 findings, 8 of which are validator error-collector slices where the common
-    #   case is zero errors (preallocating cap=len(items) would over-allocate).
-    #   The 4 legitimate findings (guaranteed-length transforms in plaintext.go,
-    #   config_test.go, and plugin test helpers) are easier to catch in code review
-    #   than via a lint rule that also recommends the anti-pattern on validators.
-    #   AGENTS.md documents the manual-review expectation. See also: prealloc would
-    #   need an exclusion list per-directory to avoid steering us wrong.
+    # prealloc is off: it recommends over-allocation for the common empty-result case.
     - predeclared
-    - promlinter
-    - protogetter
     - reassign
     - recvcheck
     - revive
-    - rowserrcheck
     - sloglint
-    - spancheck
-    - sqlclosecheck
     - staticcheck
-    # - tagliatelle - Permanently disabled: the vendor-controlled config.xml schema
-    #   mixes casing conventions (hostname, descr, sourceport, created-time, Phase1).
-    #   Our Go types mirror that reality; enforcing a single case convention fights
-    #   the input format we do not control.
+    # tagliatelle is off: JSON tags are camelCase by convention and checked in tests.
     - testableexamples
     - thelper
-    - testifylint
     - tparallel
     - unconvert
     - unparam
@@ -117,18 +92,10 @@ linters:
     - gomodguard # Disabled: maybe someday, but not important right now
     - gocyclo # Disabled in favor of cyclop (which supersedes it with per-package averages)
     - testpackage # Disabled: tests live in the same package to exercise unexported helpers
-    - gochecknoglobals # Disabled: causes issues with cobra commands
+    - gochecknoglobals # Disabled: package-level lookup tables (importer registry, status fills) are intentional
   settings:
     cyclop:
-      # 25 (vs. Go default 15). Sweep on 2026-04-19 cleared the baseline
-      # at this threshold after the nestif/gocognit/funlen sweeps
-      # refactored the hot spots. The remaining 6 findings were the
-      # declarative XML dispatch (handleStartElement), flat field-check
-      # chains over the OPNsense DHCPv6 schema (HasDHCPv6Config,
-      # buildDHCPv6Items), and per-field test-equality assertions — each
-      # carries //nolint:cyclop with a scoped reason. Can tighten to 15
-      # once more schema-level dispatches move to reflection-based
-      # dispatch, but that is a larger refactor than this sweep.
+      # 25 rather than the default 15; tighten once the parsers settle.
       max-complexity: 25
       package-average: 10.0
     gocritic:
@@ -152,19 +119,8 @@ linters:
       forbid-mutex: true
 
     goconst:
-      # Skip _test.go files entirely when counting occurrences. Without
-      # this, test-table fixture strings (which we deliberately exclude
-      # from the linter under exclusions.rules) still inflate the
-      # occurrence count and force production code that happens to share
-      # a literal with a test fixture to introduce an unnecessary
-      # constant. The exclusion-by-path-and-counting-by-everything dual
-      # behavior was the root cause of the 2026-05-21 sweep needing 17+
-      # extra production constants for "list" / "devices" / "formats"
-      # strings that each appear exactly once in production code but 3+
-      # times in their test files.
+      # Test fixtures repeat literals by design; count production code only.
       ignore-tests: true
-      # Default min-occurrences is 3. Keep the default; we want goconst
-      # to catch genuinely repeated production-code strings.
       min-occurrences: 3
 
     errcheck:
@@ -178,50 +134,26 @@ linters:
       check:
         - switch
         - map
-      # Any switch with a default: branch is treated as exhaustive. This
-      # matches the project's convention where partial switches on large
-      # enum-style types (e.g., reflect.Kind) include an explicit default
-      # that documents "no-op for kinds not listed" rather than listing
-      # every kind just to satisfy the linter.
+      # A switch with a default branch counts as exhaustive.
       default-signifies-exhaustive: true
     forbidigo:
-      # Type-aware matching so we catch t.Parallel() regardless of the local
-      # variable name (t, tt, tc, etc.).
       analyze-types: true
-      forbid:
-        # GOTCHAS §1.1: the cmd package uses package-level CLI flag globals
-        # (sharedDeviceType, sharedAuditMode, outputFile, format, force, ...).
-        # Any test that calls t.Parallel() risks a data race with sibling
-        # tests that mutate those globals. The race detector reports collateral
-        # races in unrelated utilities, so the policy is a blanket ban in cmd/.
-        # Scope is enforced by the path-except rule under linters.exclusions.
-        - pattern: '^testing\.T\.Parallel$'
-          msg: "cmd/ tests must not call t.Parallel(): cmd uses package-level CLI flag globals that race under parallel execution. See GOTCHAS §1.1."
     funcorder:
       struct-method: false
     funlen:
-      # 120/80 (vs. default 60/40). Sweep on 2026-04-19 cleared the baseline
-      # at these thresholds. Production code with genuine branching was
-      # refactored into helpers; test table declarations and declarative
-      # data tables (compliance.Control lists, sanitizer rule lists) carry
-      # //nolint:funlen with a reason. Can tighten to 80/50 in a follow-up
-      # once more test data is extracted to fixture files.
+      # 120 lines / 80 statements; declarative tables carry //nolint:funlen with a reason.
       lines: 120
       statements: 80
     gochecksumtype:
       default-signifies-exhaustive: false
     gocognit:
-      # 40 (vs. Go default 15, skill-recommended 30). Sweep on 2026-04-19
-      # cleared the baseline at this threshold. Can tighten to 30 in a
-      # follow-up once more of the hot spots (validators, walker, test
-      # helpers) have settled; dropping in one step would re-open several
-      # of the same files this sweep just refactored.
+      # 40 rather than the default 15; tighten once the parsers settle.
       min-complexity: 40
 
     gosec:
       excludes:
-        - G301 # Man pages require 755 permissions for public access
-        - G304 # Loading user-specified templates is expected CLI behavior
+        - G301 # Directory modes are set explicitly by the store (0700); the linter cannot see that
+        - G304 # Reading operator-chosen files (scan output, engagement folders) is the product
     govet:
       enable-all: true
       disable:
@@ -231,10 +163,7 @@ linters:
       skip-single-param: true
 
     nestif:
-      # 8 (vs. Go default 5). Complements cyclop + gocognit from the
-      # deep-nesting angle — catches "pyramid of doom" patterns that
-      # branching counts alone do not flag. Sweep on 2026-04-19 cleared
-      # the baseline; any re-add of a 9+-nested block will fail CI.
+      # 8 rather than the default 5.
       min-complexity: 8
 
     mnd:
@@ -249,8 +178,6 @@ linters:
         - os.Mkdir.*
         - os.OpenFile
         - os.WriteFile
-        - prometheus.ExponentialBuckets.*
-        - prometheus.LinearBuckets
 
     nakedret:
       max-func-lines: 1
@@ -258,9 +185,6 @@ linters:
       allow-no-explanation: [funlen, gocognit, golines]
       require-explanation: true
       require-specific: true
-    rowserrcheck:
-      packages:
-        - github.com/jmoiron/sqlx
     sloglint:
       no-global: all
       context: scope
@@ -278,10 +202,8 @@ issues:
   max-same-issues: 0
   new: false
   uniq-by-line: true
-  # `fix` is deliberately unset: with `fix: true`, `golangci-lint run` repairs
-  # formatter findings in place and reports a clean tree, so neither CI nor
-  # `just lint` can fail on formatting drift. Rewriting stays opt-in at the
-  # call site (`just format`, pre-commit, `golangci-lint fmt`). GOTCHAS §25.1.
+  # `fix` stays unset so `golangci-lint run` reports formatting drift instead of hiding it;
+  # the pre-commit hook and `golangci-lint fmt` do the rewriting.
 formatters:
   enable:
     - golines

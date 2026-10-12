@@ -8,6 +8,3 @@ number = true
 wrap = "no"
 end_of_line = "lf"
 
-[plugin.mkdocs]
-align_semantic_breaks_in_lists = true
-ignore_missing_references      = true

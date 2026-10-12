@@ -15,7 +15,7 @@ repos:
       - id: check-yaml
         args: [ --unsafe ]
       - id: check-xml
-        exclude: ^internal/cfgparser/testdata/
+        exclude: ^internal/importers/testdata/
       - id: mixed-line-ending
         args: [ --fix=auto ]
       - id: check-docstring-first
@@ -43,18 +43,11 @@ repos:
           - mdformat-toc
           - mdformat-front-matters
         types: [ markdown ]
-        # Exclude:
-        # - *.golden.md: golden test fixtures must match Cobra output byte-for-byte
-        # - docs/cli/: Cobra-generated CLI reference — mdformat would collapse the
-        #   indented prose blocks into single lines that then diverge from the
-        #   regenerated output on every `just generate-cli-docs` run.
-        # - CHANGELOG.md: generated; reformatting causes churn and merge conflicts.
-        # - *.tpl.md: templates with placeholder syntax mdformat would mangle.
-        # (Migrated from .mdformat.toml `exclude`, which requires Python 3.13+.)
-        exclude: (\.golden\.md$|^docs/cli/|(^|/)CHANGELOG\.md$|\.tpl\.md$)
+        # CHANGELOG.md would be generated; reformatting it only causes churn.
+        exclude: (^|/)CHANGELOG\.md$
 
-  # Go linting — mirrors `just lint` / CI lint job. Uses local hooks that
-  # delegate to the mise-pinned golangci-lint (mise.toml → 2.11.4) to keep a
+  # Go linting — mirrors `wails3 task lint`. Uses local hooks that
+  # delegate to the mise-pinned golangci-lint (see mise.toml) to keep a
   # single source of truth for the toolchain version. The upstream
   # `golangci/golangci-lint` pre-commit repo builds the binary via `go install`,
   # which strips module metadata and causes `config verify` to reject newer
