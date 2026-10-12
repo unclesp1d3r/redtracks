@@ -411,3 +411,22 @@ func TestMutateMetaAndFindingsNormalize(t *testing.T) {
 		t.Fatalf("nil slices not normalised:\n%s\n%s", meta, finds)
 	}
 }
+
+func TestMutateHostAfterFileDeletedErrors(t *testing.T) {
+	dir := copyFixture(t)
+	s := mustOpen(t, dir)
+	if err := os.Remove(filepath.Join(dir, hostRel)); err != nil {
+		t.Fatal(err)
+	}
+	err := s.MutateHost(fixtureIP, func(h *model.Host) error {
+		h.Status = model.HostStatusRoot
+		return nil
+	})
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("err = %v, want not-exist", err)
+	}
+	h, ok := s.Engagement().Host(fixtureIP)
+	if !ok || h.Status == model.HostStatusRoot || h.IP != fixtureIP {
+		t.Fatalf("in-memory host changed: %+v ok=%v", h, ok)
+	}
+}

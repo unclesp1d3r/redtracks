@@ -44,8 +44,8 @@ function NotesBody({ ip, initial }: Body) {
   const [error, setError] = useState<string | null>(null);
 
   // The event handler must see current values without resubscribing on every keystroke.
-  const live = useRef({ isDirty, baseHash });
-  live.current = { isDirty, baseHash };
+  const live = useRef({ isDirty, baseHash, text });
+  live.current = { isDirty, baseHash, text };
 
   function adopt(n: Notes) {
     setText(n.Text);
@@ -73,14 +73,16 @@ function NotesBody({ ip, initial }: Body) {
   const save = useMutation({
     meta: { silent: true },
     mutationFn: async (overwrite: boolean) => {
+      const savedText = text;
       const hash = overwrite ? (await EngagementService.ReadNotes(ip)).Hash : baseHash;
-      await EngagementService.WriteNotes(ip, text, hash);
+      await EngagementService.WriteNotes(ip, savedText, hash);
       // ponytail: a write landing between WriteNotes and this read is adopted as ours; the next change event still reconciles.
-      return (await EngagementService.ReadNotes(ip)).Hash;
+      return { hash: (await EngagementService.ReadNotes(ip)).Hash, savedText };
     },
-    onSuccess: (hash) => {
+    onSuccess: ({ hash, savedText }) => {
       setBaseHash(hash);
-      setIsDirty(false);
+      // Keystrokes typed while the save was in flight stay dirty.
+      setIsDirty(live.current.text !== savedText);
       setDiskChange(null);
       setIsConflict(false);
       setError(null);

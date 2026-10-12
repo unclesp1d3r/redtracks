@@ -41,10 +41,12 @@ func dropInvalidHosts(res Result) Result {
 	dropped := res.Dropped
 	for _, h := range res.Hosts {
 		if h.IP != "" {
-			if _, err := netip.ParseAddr(h.IP); err != nil {
+			addr, err := netip.ParseAddr(h.IP)
+			if err != nil || addr.Zone() != "" {
 				dropped++
 				continue
 			}
+			h.IP = addr.String()
 		}
 		kept = append(kept, h)
 	}

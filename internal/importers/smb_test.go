@@ -110,3 +110,15 @@ func TestSMBParsersRejectMalformedInput(t *testing.T) {
 		})
 	}
 }
+
+func TestParseNetexecEmptyCredentialLine(t *testing.T) {
+	res, err := parseNetexec([]byte("SMB 10.10.10.5 445 DC01 [+] :x\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	for _, h := range res.Hosts {
+		if len(h.Users) != 0 {
+			t.Errorf("users = %+v, want none", h.Users)
+		}
+	}
+}

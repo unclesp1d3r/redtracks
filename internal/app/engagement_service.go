@@ -113,14 +113,18 @@ func (s *EngagementService) WriteNotes(ip, text, baseHash string) error {
 	})
 }
 
-// MarkTried records that a credential was tried on a host, and that it works when works is set.
+// MarkTried records that a credential was tried on the host with the given IP (stored by host ID), and that it works when works is set.
 func (s *EngagementService) MarkTried(credID, hostIP string, works bool) error {
 	return s.app.withStore("EngagementService.MarkTried", func(st *store.Store) error {
+		host, ok := st.Engagement().Host(hostIP)
+		if !ok {
+			return fmt.Errorf("host %s: %w", hostIP, errNotFound)
+		}
 		return st.MutateCreds(func(c *model.Creds) error {
 			next, err := updateByID(c.Credentials, credID, credentialID, func(cr model.Credential) model.Credential {
-				cr.TriedOn = appendOnce(cr.TriedOn, hostIP)
+				cr.TriedOn = appendOnce(cr.TriedOn, host.ID)
 				if works {
-					cr.WorksOn = appendOnce(cr.WorksOn, hostIP)
+					cr.WorksOn = appendOnce(cr.WorksOn, host.ID)
 				}
 				return cr
 			})

@@ -69,7 +69,11 @@ func applyNetexecRow(h HostResult, rest string) HostResult {
 // netexecUser parses "domain\user:password" and discards the password.
 func netexecUser(s string) (UserResult, bool) {
 	cred, _, _ := strings.Cut(s, ":")
-	domain, user, hasDomain := strings.Cut(strings.Fields(cred + " ")[0], `\`)
+	fields := strings.Fields(cred)
+	if len(fields) == 0 {
+		return UserResult{}, false
+	}
+	domain, user, hasDomain := strings.Cut(fields[0], `\`)
 	if !hasDomain {
 		domain, user = "", domain
 	}

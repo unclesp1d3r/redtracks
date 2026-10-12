@@ -12,9 +12,10 @@ vi.mock("@wailsio/runtime", () => ({
   },
 }));
 const readNotes = vi.fn();
+const writeNotes = vi.fn();
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
-  return { ...actual, EngagementService: { ReadNotes: (ip: string) => readNotes(ip), WriteNotes: vi.fn() } };
+  return { ...actual, EngagementService: { ReadNotes: (ip: string) => readNotes(ip), WriteNotes: (ip: string, text: string, hash: string) => writeNotes(ip, text, hash) } };
 });
 
 import { fireEvent } from "@testing-library/react";
@@ -38,6 +39,7 @@ describe("NotesEditor", () => {
   beforeEach(() => {
     handlers.length = 0;
     readNotes.mockReset();
+    writeNotes.mockReset();
     readNotes.mockResolvedValue({ Text: "v1", Hash: "h1" });
   });
 
@@ -58,5 +60,24 @@ describe("NotesEditor", () => {
     await fireChanged();
     await waitFor(() => expect(area.value).toBe("v2"));
     expect(screen.queryByText(/changed on disk/)).toBeNull();
+  });
+
+  it("keeps text typed during a save dirty and does not adopt it away", async () => {
+    setup();
+    const area = (await screen.findByLabelText("Notes text")) as HTMLTextAreaElement;
+    let finishWrite: () => void = () => undefined;
+    writeNotes.mockReturnValue(new Promise<void>((resolve) => (finishWrite = resolve)));
+    fireEvent.change(area, { target: { value: "first" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(writeNotes).toHaveBeenCalledWith("10.0.0.1", "first", "h1"));
+
+    fireEvent.change(area, { target: { value: "first plus more" } });
+    readNotes.mockResolvedValue({ Text: "first", Hash: "h2" });
+    await act(async () => finishWrite());
+    await waitFor(() => expect(screen.queryByText("Unsaved changes")).not.toBeNull());
+
+    await fireChanged();
+    expect(area.value).toBe("first plus more");
+    expect(screen.queryByText("Unsaved changes")).not.toBeNull();
   });
 });

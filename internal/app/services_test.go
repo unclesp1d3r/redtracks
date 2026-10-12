@@ -2,13 +2,16 @@ package app
 
 import (
 	"encoding/base64"
+	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
+	"github.com/unclesp1d3r/redtracks/internal/progress"
 	"github.com/unclesp1d3r/redtracks/internal/store"
 )
 
@@ -34,34 +37,72 @@ func TestSetItemPersists(t *testing.T) {
 	}
 }
 
+func addSecondHost(t *testing.T, a *App) model.Host {
+	t.Helper()
+	if err := NewHostService(a).Add("10.10.10.9", ""); err != nil {
+		t.Fatal(err)
+	}
+	h, ok := current(t, a).Host("10.10.10.9")
+	if !ok || h.ID == "" {
+		t.Fatalf("second host missing: %+v", h)
+	}
+	return h
+}
+
 func TestMarkTriedAppendsOnce(t *testing.T) {
 	a := openSample(t).app
 	e := NewEngagementService(a)
-	cur := current(t, a)
-	id := cur.Creds.Credentials[0].ID
+	host := addSecondHost(t, a)
+	id := current(t, a).Creds.Credentials[0].ID
 
 	for range 2 {
-		if err := e.MarkTried(id, "10.10.10.9", false); err != nil {
+		if err := e.MarkTried(id, host.IP, false); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := e.MarkTried(id, "10.10.10.9", true); err != nil {
+	if err := e.MarkTried(id, host.IP, true); err != nil {
 		t.Fatal(err)
 	}
 
-	cur = current(t, a)
-	c := cur.Creds.Credentials[0]
-	count := 0
-	for _, h := range c.TriedOn {
-		if h == "10.10.10.9" {
-			count++
+	c := current(t, a).Creds.Credentials[0]
+	if !slices.Equal(c.TriedOn, []string{host.ID}) {
+		t.Fatalf("TriedOn %v, want [%s]", c.TriedOn, host.ID)
+	}
+	if !slices.Equal(c.WorksOn, []string{host.ID}) {
+		t.Fatalf("WorksOn %v, want [%s]", c.WorksOn, host.ID)
+	}
+}
+
+func TestMarkTriedRemovesCredFromUntried(t *testing.T) {
+	a := openSample(t).app
+	host := addSecondHost(t, a)
+	id := current(t, a).Creds.Credentials[0].ID
+	untriedOn := func() []string {
+		for _, s := range progress.Summarize(current(t, a), nil) {
+			if s.IP == host.IP {
+				return s.UntriedCreds
+			}
 		}
+		t.Fatal("host summary missing")
+		return nil
 	}
-	if count != 1 {
-		t.Fatalf("TriedOn %v", c.TriedOn)
+
+	if !slices.Contains(untriedOn(), id) {
+		t.Fatalf("setup: credential should start untried, got %v", untriedOn())
 	}
-	if len(c.WorksOn) == 0 || c.WorksOn[len(c.WorksOn)-1] != "10.10.10.9" {
-		t.Fatalf("WorksOn %v", c.WorksOn)
+	if err := NewEngagementService(a).MarkTried(id, host.IP, false); err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(untriedOn(), id) {
+		t.Fatalf("credential still untried after MarkTried: %v", untriedOn())
+	}
+}
+
+func TestMarkTriedUnknownHostErrors(t *testing.T) {
+	a := openSample(t).app
+	id := current(t, a).Creds.Credentials[0].ID
+	if err := NewEngagementService(a).MarkTried(id, "10.9.9.9", false); !errors.Is(err, errNotFound) {
+		t.Fatalf("err = %v, want not found", err)
 	}
 }
 

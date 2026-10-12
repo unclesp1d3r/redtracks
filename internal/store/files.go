@@ -171,6 +171,9 @@ func mutate[T any](s *Store, sp fileSpec[T], fn func(*T) error) error {
 	if err != nil {
 		return err
 	}
+	if len(data) == 0 && !s.mtimes[sp.path].IsZero() {
+		return fmt.Errorf("%s vanished or was emptied while open: %w", sp.path, os.ErrNotExist)
+	}
 	if s.hashes[sp.path] != sha256.Sum256(data) {
 		fresh, err := sp.decode(data)
 		if err != nil {
