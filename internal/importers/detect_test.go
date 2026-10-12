@@ -22,6 +22,14 @@ func TestDetectAllFixtures(t *testing.T) {
 	table := map[string]string{
 		"nmap-localhost.xml":   "nmap",
 		"nmap-subnet-down.xml": "nmap",
+		"masscan.json":         "masscan",
+		"gobuster-dir.txt":     "gobuster",
+		"ffuf.json":            "ffuf",
+		"feroxbuster.jsonl":    "feroxbuster",
+		"nikto.json":           "nikto",
+		"nuclei.jsonl":         "nuclei",
+		"enum4linux-ng.json":   "enum4linux-ng",
+		"netexec-smb.txt":      "netexec",
 	}
 	for file, want := range table {
 		t.Run(file, func(t *testing.T) {

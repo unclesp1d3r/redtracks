@@ -43,6 +43,7 @@ func Detect(head []byte) (string, error) {
 	if len(head) > sniffBytes {
 		head = head[:sniffBytes]
 	}
+	head = ansiEscape.ReplaceAll(head, nil) // netexec output may be colourised
 	tried := make([]string, 0, len(sniffRules))
 	for _, r := range sniffRules {
 		if r.match(head) {

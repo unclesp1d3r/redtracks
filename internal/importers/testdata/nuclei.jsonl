@@ -1,0 +1,3 @@
+{"template-id":"CVE-2021-41773","info":{"name":"Apache 2.4.49 Path Traversal","severity":"Critical"},"host":"http://10.10.10.5","matched-at":"http://10.10.10.5/cgi-bin/.%2e/.%2e/etc/passwd","port":"80"}
+{"template-id":"nginx-detect","info":{"name":"Nginx Detect","severity":"info"},"host":"http://10.10.10.5","matched-at":"http://10.10.10.5/","port":"80"}
+{"template-id":"git-config","info":{"name":"Exposed Git Config","severity":"Medium"},"host":"https://app.example.test:8443","matched-at":"https://app.example.test:8443/.git/config","port":"8443"}

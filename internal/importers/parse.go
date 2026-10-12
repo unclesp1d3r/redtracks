@@ -7,7 +7,15 @@ import (
 
 // parsers maps a tool name to its parser; each tool's file registers itself here.
 var parsers = map[string]func([]byte) (Result, error){
-	ToolNmap: parseNmap,
+	ToolNmap:         parseNmap,
+	ToolMasscan:      parseMasscan,
+	ToolGobuster:     parseGobuster,
+	ToolFfuf:         parseFfuf,
+	ToolFeroxbuster:  parseFeroxbuster,
+	ToolNikto:        parseNikto,
+	ToolNuclei:       parseNuclei,
+	ToolEnum4linuxNG: parseEnum4linux,
+	ToolNetexec:      parseNetexec,
 }
 
 // Parse detects the format of data, runs the matching parser, and drops hosts

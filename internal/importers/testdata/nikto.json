@@ -1,0 +1,1 @@
+{"host":"10.10.10.5","ip":"10.10.10.5","port":"80","banner":"Apache/2.4.49","vulnerabilities":[{"id":"999957","method":"GET","url":"/","msg":"The anti-clickjacking X-Frame-Options header is not present."},{"id":"999970","method":"GET","url":"/icons/README","msg":"Apache default file found."},{"id":"000001","method":"GET","url":"/admin/","msg":"Directory indexing found."}]}
