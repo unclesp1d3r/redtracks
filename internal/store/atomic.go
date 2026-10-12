@@ -2,13 +2,17 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"syscall"
 )
 
 // fileMode is the permission set applied to every file the store writes.
-const fileMode os.FileMode = 0o644
+// Engagement data is sensitive, so it is owner-only.
+const fileMode os.FileMode = 0o600
 
 // WriteAtomic replaces path with data. It writes a temp file in the same
 // directory, fsyncs, then renames over path, so readers see the old or the new
@@ -45,6 +49,26 @@ func WriteAtomic(path string, data []byte) (err error) {
 	}
 	if err = os.Rename(tmpName, path); err != nil {
 		return fmt.Errorf("rename to %s: %w", path, err)
+	}
+	return syncDir(dir)
+}
+
+// syncDir fsyncs dir so the rename survives a crash. Filesystems and
+// platforms that reject directory fsync are tolerated.
+func syncDir(dir string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	d, err := os.Open(dir)
+	if err != nil {
+		return fmt.Errorf("open %s: %w", dir, err)
+	}
+	syncErr := d.Sync()
+	if closeErr := d.Close(); closeErr != nil && syncErr == nil {
+		return fmt.Errorf("close %s: %w", dir, closeErr)
+	}
+	if syncErr != nil && !errors.Is(syncErr, syscall.EINVAL) && !errors.Is(syncErr, errors.ErrUnsupported) {
+		return fmt.Errorf("sync %s: %w", dir, syncErr)
 	}
 	return nil
 }

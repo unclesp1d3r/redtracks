@@ -215,3 +215,8 @@ func TestLookupHelpers(t *testing.T) {
 	_, found = e.Host("10.0.0.2")
 	check(t, !found)
 }
+
+func TestServiceLabel(t *testing.T) {
+	eq(t, "80/tcp http", model.Service{Port: 80, Protocol: "tcp", Type: "http"}.Label())
+	eq(t, "22/tcp", model.Service{Port: 22, Protocol: "tcp"}.Label())
+}

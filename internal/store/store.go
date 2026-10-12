@@ -27,7 +27,9 @@ type Store struct {
 	eng    model.Engagement
 	hashes map[string][sha256.Size]byte // SHA-256 of the bytes last read or written, per path
 	mtimes map[string]time.Time         // mtime seen at that moment, per path
-	mu     sync.Mutex
+	// failedMtimes holds the mtime of a file whose parse error was already reported.
+	failedMtimes map[string]time.Time
+	mu           sync.Mutex
 }
 
 // Open loads engagement.json, creds.json, findings.json and every
@@ -38,6 +40,8 @@ func Open(dir string) (*Store, error) {
 		eng:    model.Engagement{Dir: dir},
 		hashes: map[string][sha256.Size]byte{},
 		mtimes: map[string]time.Time{},
+
+		failedMtimes: map[string]time.Time{},
 	}
 	if _, err := s.Reload(); err != nil {
 		return nil, err

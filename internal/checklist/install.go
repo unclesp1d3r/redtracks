@@ -11,7 +11,7 @@ import (
 
 // installDirMode is the permission set applied to a freshly created
 // checklist directory.
-const installDirMode os.FileMode = 0o755
+const installDirMode os.FileMode = 0o700
 
 // InstallDefaults copies every file in src into dst, creating dst if it does
 // not already exist. It is a no-op, returning installed=false, when dst

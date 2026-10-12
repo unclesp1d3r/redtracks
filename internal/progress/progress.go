@@ -3,7 +3,6 @@
 package progress
 
 import (
-	"fmt"
 	"slices"
 	"sort"
 
@@ -54,7 +53,7 @@ func summarizeHost(eng model.Engagement, defs []checklist.Definition, h model.Ho
 		svcCounts := countState(checklist.ForService(defs, s), s.Checklist)
 		counts = counts.add(svcCounts)
 		if svcCounts.total > 0 && svcCounts.todo == svcCounts.total {
-			untouched = append(untouched, fmt.Sprintf("%d/%s %s", s.Port, s.Protocol, s.Type))
+			untouched = append(untouched, s.Label())
 		}
 	}
 	flags := flagProgress(eng.Meta.FlagTypes, h)

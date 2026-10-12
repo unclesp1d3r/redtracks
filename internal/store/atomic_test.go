@@ -46,6 +46,9 @@ func TestWriteAtomicSetsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if fileMode != 0o600 {
+		t.Fatalf("fileMode = %v, want 0600", fileMode)
+	}
 	if info.Mode().Perm() != fileMode {
 		t.Fatalf("mode %v, want %v", info.Mode().Perm(), fileMode)
 	}

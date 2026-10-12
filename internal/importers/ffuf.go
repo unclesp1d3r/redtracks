@@ -16,6 +16,7 @@ type ffufConfig struct {
 type ffufOutput struct {
 	Config  ffufConfig `json:"config"`
 	Results []struct {
+		URL    string            `json:"url"`
 		Input  map[string]string `json:"input"`
 		Status int               `json:"status"`
 		Length int               `json:"length"`
@@ -50,8 +51,23 @@ func parseFfuf(data []byte) (Result, error) {
 	}
 	for _, r := range out.Results {
 		host.WebPaths = append(host.WebPaths, WebPathResult{
-			Path: "/" + r.Input["FUZZ"], Status: r.Status, Size: r.Length,
+			Path: ffufPath(r.URL, r.Input["FUZZ"]), Status: r.Status, Size: r.Length,
 		})
 	}
 	return Result{Tool: ToolFfuf, Hosts: []HostResult{host}}, nil
+}
+
+// ffufPath prefers the path of the result's own url, which is what ffuf
+// actually requested, and falls back to the FUZZ word when url is absent or
+// unparsable.
+func ffufPath(rawURL, fuzz string) string {
+	if rawURL != "" {
+		if u, err := url.Parse(rawURL); err == nil && u.Host != "" {
+			if u.Path == "" {
+				return "/"
+			}
+			return u.Path
+		}
+	}
+	return "/" + fuzz
 }

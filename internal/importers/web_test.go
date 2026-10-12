@@ -62,9 +62,34 @@ func TestParseFfuf(t *testing.T) {
 	if h.URL != "http://10.10.10.5" || h.IP != "10.10.10.5" {
 		t.Errorf("URL=%q IP=%q", h.URL, h.IP)
 	}
-	want := []WebPathResult{{"/admin", 301, 169}, {"/login", 200, 4021}}
-	if len(h.WebPaths) != 2 || h.WebPaths[0] != want[0] || h.WebPaths[1] != want[1] {
-		t.Errorf("paths = %+v, want %+v", h.WebPaths, want)
+	// The third result's FUZZ word is base64 noise; its path must come from url.
+	want := []WebPathResult{{"/admin", 301, 169}, {"/login", 200, 4021}, {"/backup/", 200, 512}}
+	if len(h.WebPaths) != len(want) {
+		t.Fatalf("paths = %+v, want %+v", h.WebPaths, want)
+	}
+	for i := range want {
+		if h.WebPaths[i] != want[i] {
+			t.Errorf("path %d = %+v, want %+v", i, h.WebPaths[i], want[i])
+		}
+	}
+}
+
+func TestFfufPathFallsBackToFuzz(t *testing.T) {
+	cases := map[string][2]string{
+		"no url":      {"", "admin"},
+		"unparsable":  {"::nope", "admin"},
+		"no host":     {"/admin", "admin"},
+		"url wins":    {"http://h/real", "noise"},
+		"bare origin": {"http://h", "noise"},
+	}
+	want := map[string]string{
+		"no url": "/admin", "unparsable": "/admin", "no host": "/admin",
+		"url wins": "/real", "bare origin": "/",
+	}
+	for name, in := range cases {
+		if got := ffufPath(in[0], in[1]); got != want[name] {
+			t.Errorf("%s: ffufPath(%q, %q) = %q, want %q", name, in[0], in[1], got, want[name])
+		}
 	}
 }
 

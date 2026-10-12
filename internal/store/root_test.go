@@ -41,6 +41,15 @@ func TestCreateEngagementWritesLayout(t *testing.T) {
 			t.Errorf("missing %s: %v", p, err)
 		}
 	}
+	for _, p := range []string{".", "hosts"} {
+		info, err := os.Stat(filepath.Join(dir, p))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != dirMode || dirMode != 0o700 {
+			t.Errorf("%s mode %v, want 0700", p, info.Mode().Perm())
+		}
+	}
 	var meta model.EngagementMeta
 	if err := json.Unmarshal([]byte(readFile(t, filepath.Join(dir, "engagement.json"))), &meta); err != nil {
 		t.Fatal(err)

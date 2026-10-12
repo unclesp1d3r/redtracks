@@ -27,6 +27,16 @@ function Link({ href, children }: ComponentProps<"a">) {
   );
 }
 
+const REMOTE_URL = /^(https?:)?\/\//i;
+
+/** Remote images are never fetched; the alt text (or the URL) shows as text instead. */
+function Image({ src, alt }: ComponentProps<"img">) {
+  if (typeof src === "string" && REMOTE_URL.test(src)) {
+    return <span className="text-muted-foreground">{alt || src}</span>;
+  }
+  return <img src={src} alt={alt} />;
+}
+
 /**
  * GFM Markdown. Raw HTML is not enabled (react-markdown ignores it without rehype-raw),
  * so notes cannot inject markup.
@@ -34,7 +44,7 @@ function Link({ href, children }: ComponentProps<"a">) {
 export function MarkdownView({ text }: { text: string }) {
   return (
     <div className="space-y-2 text-sm [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:font-semibold [&_pre]:overflow-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-2 [&_table]:border [&_td]:border [&_td]:px-2 [&_th]:border [&_th]:px-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5">
-      <Markdown remarkPlugins={[remarkGfm]} components={{ code: Code, a: Link }}>
+      <Markdown remarkPlugins={[remarkGfm]} components={{ code: Code, a: Link, img: Image }}>
         {text}
       </Markdown>
     </div>

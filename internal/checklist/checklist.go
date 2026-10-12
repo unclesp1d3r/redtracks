@@ -133,12 +133,17 @@ func Merge(def Definition, state model.ChecklistState) []ItemView {
 
 // Substitute replaces $T with targetIP and $D with domain in cmd. targetIP
 // must parse as an IP address. domain, if non-empty, must match
-// ^[A-Za-z0-9._-]+$.
+// ^[A-Za-z0-9._-]+$ and must not start with "-" (it would read as a flag).
+// An IPv6 zone is rejected.
 func Substitute(cmd, targetIP, domain string) (string, error) {
-	if _, err := netip.ParseAddr(targetIP); err != nil {
+	addr, err := netip.ParseAddr(targetIP)
+	if err != nil {
 		return "", fmt.Errorf("invalid target IP %q: %w", targetIP, err)
 	}
-	if domain != "" && !domainPattern.MatchString(domain) {
+	if addr.Zone() != "" {
+		return "", fmt.Errorf("invalid target IP %q: zones are not allowed", targetIP)
+	}
+	if domain != "" && (strings.HasPrefix(domain, "-") || !domainPattern.MatchString(domain)) {
 		return "", fmt.Errorf("invalid domain %q", domain)
 	}
 	out := strings.ReplaceAll(cmd, "$T", targetIP)

@@ -243,3 +243,20 @@ func TestApplySavesRaw(t *testing.T) {
 		t.Errorf("import files %v err %v, want exactly one", files, err)
 	}
 }
+
+func TestWriteTargetFallsBackWhenHostExists(t *testing.T) {
+	st := openSample(t)
+	svc := ServiceResult{Port: 8443, Protocol: "tcp", Type: "https"}
+	tg := target{ip: sampleIP, host: HostResult{Services: []ServiceResult{svc}}}
+	// exists=false is a stale snapshot: the host is already in the store.
+	if err := writeTarget(st, tg, ToolNmap, false); err != nil {
+		t.Fatalf("writeTarget: %v", err)
+	}
+	h, ok := st.Engagement().Host(sampleIP)
+	if !ok {
+		t.Fatal("host missing")
+	}
+	if serviceIndex(h.Services, 8443, "tcp") < 0 || serviceIndex(h.Services, 80, "tcp") < 0 {
+		t.Fatalf("services = %+v, want merged 80 and 8443", h.Services)
+	}
+}

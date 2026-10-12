@@ -296,6 +296,14 @@ func TestRefreshSkipsReadWhenMtimeUnchanged(t *testing.T) {
 	}
 }
 
+func TestAddHostExistingReturnsErrHostExists(t *testing.T) {
+	s := mustOpen(t, copyFixture(t))
+	err := s.AddHost(model.Host{ID: "dup", IP: fixtureIP})
+	if !errors.Is(err, ErrHostExists) {
+		t.Fatalf("err = %v, want ErrHostExists", err)
+	}
+}
+
 func TestAddHostCreatesFolder(t *testing.T) {
 	dir := copyFixture(t)
 	s := mustOpen(t, dir)
@@ -428,5 +436,75 @@ func TestMutateHostAfterFileDeletedErrors(t *testing.T) {
 	h, ok := s.Engagement().Host(fixtureIP)
 	if !ok || h.Status == model.HostStatusRoot || h.IP != fixtureIP {
 		t.Fatalf("in-memory host changed: %+v ok=%v", h, ok)
+	}
+}
+
+func shiftMtime(t *testing.T, path string, d time.Duration) {
+	t.Helper()
+	when := time.Now().Add(d)
+	if err := os.Chtimes(path, when, when); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReloadReportsCorruptFileOncePerChange(t *testing.T) {
+	dir := copyFixture(t)
+	s := mustOpen(t, dir)
+	path := filepath.Join(dir, hostRel)
+	if err := os.WriteFile(path, []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	shiftMtime(t, path, time.Minute)
+	var pe *ParseError
+	if _, err := s.Reload(); !errors.As(err, &pe) {
+		t.Fatalf("first Reload err = %v, want *ParseError", err)
+	}
+	if changed, err := s.Reload(); err != nil || len(changed) != 0 {
+		t.Fatalf("second Reload = %v, %v; want nil, no change", changed, err)
+	}
+	if err := os.WriteFile(path, []byte("{{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	shiftMtime(t, path, 2*time.Minute)
+	if _, err := s.Reload(); !errors.As(err, &pe) {
+		t.Fatalf("Reload after new bad content err = %v, want *ParseError", err)
+	}
+	if err := s.MutateHost(fixtureIP, func(*model.Host) error { return nil }); err == nil {
+		t.Fatal("mutate overwrote a corrupt file")
+	}
+	good, err := os.ReadFile(filepath.Join(fixtureDir, hostRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, good, 0o600); err != nil { //nolint:gosec // path is under t.TempDir
+		t.Fatal(err)
+	}
+	shiftMtime(t, path, 3*time.Minute)
+	changed, err := s.Reload()
+	if err != nil || len(changed) != 1 || changed[0] != hostRel {
+		t.Fatalf("Reload after fix = %v, %v; want [%s]", changed, err, hostRel)
+	}
+}
+
+func TestMutateFailureAfterExternalEditStillSurfacesChange(t *testing.T) {
+	dir := copyFixture(t)
+	s := mustOpen(t, dir)
+	path := filepath.Join(dir, hostRel)
+	good, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := strings.Replace(string(good), "nibbles", "nibbles2", 1)
+	if err := os.WriteFile(path, []byte(edited), 0o600); err != nil { //nolint:gosec // path is under t.TempDir
+		t.Fatal(err)
+	}
+	shiftMtime(t, path, time.Minute)
+	boom := errors.New("boom")
+	if err := s.MutateHost(fixtureIP, func(*model.Host) error { return boom }); !errors.Is(err, boom) {
+		t.Fatalf("err = %v, want boom", err)
+	}
+	changed, err := s.Reload()
+	if err != nil || len(changed) != 1 || changed[0] != hostRel {
+		t.Fatalf("Reload = %v, %v; want [%s]", changed, err, hostRel)
 	}
 }

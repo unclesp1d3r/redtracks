@@ -1,7 +1,9 @@
 package model
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -98,6 +100,12 @@ type Service struct {
 	Notes     string         `json:"notes"`
 	WebPaths  []WebPath      `json:"webPaths"`
 	Checklist ChecklistState `json:"checklist"`
+}
+
+// Label renders the service as "port/proto type", without a trailing space
+// when the type is unknown.
+func (s Service) Label() string {
+	return strings.TrimSpace(fmt.Sprintf("%d/%s %s", s.Port, s.Protocol, s.Type))
 }
 
 // Flag is a captured (or pending) flag.

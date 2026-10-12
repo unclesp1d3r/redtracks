@@ -80,4 +80,21 @@ describe("NotesEditor", () => {
     expect(area.value).toBe("first plus more");
     expect(screen.queryByText("Unsaved changes")).not.toBeNull();
   });
+
+  it("ignores an older ReadNotes response that resolves after a newer one", async () => {
+    setup();
+    const area = (await screen.findByLabelText("Notes text")) as HTMLTextAreaElement;
+    let resolveFirst!: (n: { Text: string; Hash: string }) => void;
+    let resolveSecond!: (n: { Text: string; Hash: string }) => void;
+    readNotes
+      .mockReturnValueOnce(new Promise((r) => (resolveFirst = r)))
+      .mockReturnValueOnce(new Promise((r) => (resolveSecond = r)));
+    await fireChanged();
+    await fireChanged();
+
+    await act(async () => resolveSecond({ Text: "newer", Hash: "h3" }));
+    await waitFor(() => expect(area.value).toBe("newer"));
+    await act(async () => resolveFirst({ Text: "older", Hash: "h2" }));
+    expect(area.value).toBe("newer");
+  });
 });

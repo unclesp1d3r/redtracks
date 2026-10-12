@@ -56,16 +56,23 @@ function NotesBody({ ip, initial }: Body) {
     setIsConflict(false);
   }
 
+  // Rapid change events overlap reads; only the latest request may apply its result.
+  const latestRead = useRef(0);
+
   useEffect(() => {
     const off = Events.On("engagement:changed", () => {
+      const requestId = ++latestRead.current;
       EngagementService.ReadNotes(ip)
         .then((n) => {
+          if (requestId !== latestRead.current) return;
           const { isDirty: dirty, baseHash: base } = live.current;
           if (n.Hash === base) return;
           if (dirty) setDiskChange(n);
           else adopt(n);
         })
-        .catch((e: unknown) => setError(errorMessage(e)));
+        .catch((e: unknown) => {
+          if (requestId === latestRead.current) setError(errorMessage(e));
+        });
     });
     return off;
   }, [ip]);

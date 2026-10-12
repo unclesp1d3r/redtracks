@@ -364,10 +364,6 @@ func serviceIndex(svcs []model.Service, port int, proto string) int {
 	return slices.IndexFunc(svcs, func(s model.Service) bool { return s.Port == port && s.Protocol == proto })
 }
 
-func serviceLabel(s model.Service) string {
-	return strings.TrimSpace(fmt.Sprintf("%d/%s %s", s.Port, s.Protocol, s.Type))
-}
-
 // upsertService matches by port and protocol and fills empty fields only.
 func upsertService(svcs []model.Service, sr ServiceResult) ([]model.Service, Row) {
 	proto := sr.Protocol
@@ -381,14 +377,14 @@ func upsertService(svcs []model.Service, sr ServiceResult) ([]model.Service, Row
 			ID: model.NewID(), Port: sr.Port, Protocol: proto, Type: sr.Type,
 			Product: sr.Product, Version: sr.Version, WebPaths: []model.WebPath{},
 		}
-		return append(out, s), Row{Kind: kindService, Badge: BadgeNew, Label: serviceLabel(s)}
+		return append(out, s), Row{Kind: kindService, Badge: BadgeNew, Label: s.Label()}
 	}
 	s := out[i]
 	filled := fillEmpty(&s.Type, sr.Type)
 	filled = fillEmpty(&s.Product, sr.Product) || filled
 	filled = fillEmpty(&s.Version, sr.Version) || filled
 	out[i] = s
-	return out, Row{Kind: kindService, Badge: badgeFor(false, filled), Label: serviceLabel(s)}
+	return out, Row{Kind: kindService, Badge: badgeFor(false, filled), Label: s.Label()}
 }
 
 // mergeWebPaths adds t's web paths to the service on t.port, deduplicated by path and status.

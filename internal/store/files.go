@@ -141,7 +141,8 @@ func (s *Store) record(path string, data []byte, mtime time.Time) {
 }
 
 // refresh re-reads the file when its mtime moved and adopts the parsed value.
-// On a parse failure the in-memory copy and recorded hash stay untouched.
+// On a parse failure the in-memory copy and recorded hash stay untouched; the
+// failing mtime is remembered so the error surfaces once per on-disk change.
 func refresh[T any](s *Store, sp fileSpec[T]) (bool, error) {
 	mtime, err := statMtime(sp.path)
 	if err != nil {
@@ -150,14 +151,19 @@ func refresh[T any](s *Store, sp fileSpec[T]) (bool, error) {
 	if known, ok := s.mtimes[sp.path]; ok && known.Equal(mtime) {
 		return false, nil
 	}
+	if failed, ok := s.failedMtimes[sp.path]; ok && failed.Equal(mtime) {
+		return false, nil // already reported this corrupt revision
+	}
 	data, err := readOptional(sp.path)
 	if err != nil {
 		return false, err
 	}
 	v, err := sp.decode(data)
 	if err != nil {
+		s.failedMtimes[sp.path] = mtime
 		return false, err
 	}
+	delete(s.failedMtimes, sp.path)
 	sp.set(v)
 	s.record(sp.path, data, mtime)
 	return true, nil
@@ -167,7 +173,7 @@ func refresh[T any](s *Store, sp fileSpec[T]) (bool, error) {
 // If the file changed since the last read it is reparsed first, so fn always
 // runs against what is on disk. A corrupt file is never overwritten.
 func mutate[T any](s *Store, sp fileSpec[T], fn func(*T) error) error {
-	data, mtime, err := readState(sp.path)
+	data, _, err := readState(sp.path)
 	if err != nil {
 		return err
 	}
@@ -180,7 +186,9 @@ func mutate[T any](s *Store, sp fileSpec[T], fn func(*T) error) error {
 			return err
 		}
 		sp.set(fresh)
-		s.record(sp.path, data, mtime)
+		// Only the hash is updated: the stale mtime makes the next Reload
+		// re-read the file and report it, even if fn fails below.
+		s.hashes[sp.path] = sha256.Sum256(data)
 	}
 	cur, err := sp.get()
 	if err != nil {

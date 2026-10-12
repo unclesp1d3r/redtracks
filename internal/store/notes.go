@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	dirMode      os.FileMode = 0o750
+	dirMode      os.FileMode = 0o700
 	importStamp              = "20060102-150405"
 	maxImportTry             = 3600
 )

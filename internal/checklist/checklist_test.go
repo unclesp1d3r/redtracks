@@ -188,6 +188,8 @@ func TestSubstituteRejectsShellMetacharacters(t *testing.T) {
 		{"domain metacharacters", "10.0.0.1", "corp.local;curl x|sh"},
 		{"domain newline", "10.0.0.1", "corp.local\nrm -rf /"},
 		{"ip metacharacters", "10.0.0.1;id", "corp.local"},
+		{"ip zone", "::1%x;id", "corp.local"},
+		{"domain leading dash", "10.0.0.1", "-evil.local"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -16,6 +16,10 @@ const (
 	windowHeight = 900
 	titleBarH    = 50
 
+	// Smallest window that keeps the two-pane Host layout usable beside a VM.
+	minWindowWidth  = 900
+	minWindowHeight = 600
+
 	// Window background, matches the dark theme --background token.
 	bgRed, bgGreen, bgBlue = 14, 17, 27
 )
@@ -53,9 +57,11 @@ func main() {
 	backend.SetEmitter(func(name string, data any) { wailsApp.Event.Emit(name, data) })
 
 	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  appName,
-		Width:  windowWidth,
-		Height: windowHeight,
+		Title:     appName,
+		Width:     windowWidth,
+		Height:    windowHeight,
+		MinWidth:  minWindowWidth,
+		MinHeight: minWindowHeight,
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: titleBarH,
 			Backdrop:                application.MacBackdropTranslucent,
