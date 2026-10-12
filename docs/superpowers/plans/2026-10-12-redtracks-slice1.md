@@ -104,7 +104,7 @@ tasks:
 
 - [ ] **Step 7: Add LICENSE, .gitignore, README**
 
-`LICENSE` is the Apache-2.0 text with copyright `2026 UncleSp1d3r`. `.gitignore` adds `bin/`, `frontend/dist/`, `frontend/node_modules/`, `frontend/bindings/`, `frontend/test-results/`. `README.md` is five lines: name, one-sentence purpose, `mise install`, `wails3 task dev`, and a note that the server build is for development and end-to-end tests only.
+`LICENSE` is the Apache-2.0 text with copyright `2026 UncleSp1d3r`. `.gitignore` adds `bin/`, `frontend/dist/`, `frontend/node_modules/`, `frontend/bindings/`, `frontend/test-results/`. `README.md` is five lines: name, one-sentence purpose, `mise install`, `wails3 task dev`, and a line on the server build: `wails3 task run:server` then open `http://localhost:8080` when the native window is unavailable.
 
 - [ ] **Step 8: Amend spec section 12**
 
@@ -839,7 +839,7 @@ func (s *ChecklistService) Command(cmd, ip, domain string) (string, error) // Su
 func OpenLog(path string) (*slog.Logger, io.Closer, error)                // text handler, rotate to path+".1" when size exceeds 5<<20 before a write
 ```
 
-`main.go` builds `App` with `store.RootDir()`, registers the four services, window title RedTracks. `Server: application.ServerOptions{Host: "localhost"}` is set only in a file guarded by the `server` build tag; the server build is a dev and e2e artifact, never distributed, because its bindings are reachable over HTTP without authentication. `emit` wraps `app.Event.Emit`. Every service method logs errors at `Error` level with the method name before returning them. Credential secrets and flag values are never written to the log.
+`main.go` builds `App` with `store.RootDir()`, registers the four services, window title RedTracks. `Server: application.ServerOptions{Host: "localhost"}` is set so the server build works as the browser fallback on `localhost:8080`; it is localhost-only and unauthenticated by design for a single-operator machine. `emit` wraps `app.Event.Emit`. Every service method logs errors at `Error` level with the method name before returning them. Credential secrets and flag values are never written to the log.
 
 - [ ] **Step 1: Write failing tests**
 
