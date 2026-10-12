@@ -188,6 +188,11 @@ func TestHostNormalizeDefaultsServiceProtocol(t *testing.T) {
 	eq(t, "udp", got.Services[1].Protocol)
 }
 
+func TestHostNormalizeDefaultsStatus(t *testing.T) {
+	eq(t, model.HostStatusUntouched, model.Host{}.Normalize().Status)
+	eq(t, model.HostStatusRoot, model.Host{Status: model.HostStatusRoot}.Normalize().Status)
+}
+
 func TestHostNormalizeDoesNotMutateReceiver(t *testing.T) {
 	h := model.Host{Services: []model.Service{{}}}
 	_ = h.Normalize()

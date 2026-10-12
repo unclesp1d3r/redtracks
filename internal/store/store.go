@@ -148,7 +148,7 @@ func (s *Store) Reload() ([]string, error) {
 	var errs []error
 	note := func(path string, didChange bool, err error) {
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, withPath(path, err))
 		}
 		if didChange {
 			changed = append(changed, s.rel(path))

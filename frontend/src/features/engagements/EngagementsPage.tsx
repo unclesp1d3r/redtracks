@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EngagementService, errorMessage } from "@/lib/api";
+import { errorBanner } from "@/lib/errorBanner";
 import { keys } from "@/lib/query";
 import { CreateEngagementDialog } from "./CreateEngagementDialog";
 
@@ -27,6 +28,7 @@ export function EngagementsPage() {
   const openEngagement = useMutation({
     mutationFn: (dir: string) => EngagementService.Open(dir),
     onSuccess: async () => {
+      errorBanner.clearKind("engagement"); // entries belong to the engagement that was open before
       await qc.invalidateQueries({ queryKey: keys.engagement() });
       navigate("/board");
     },

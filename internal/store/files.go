@@ -137,6 +137,9 @@ func (sp fileSpec[T]) decode(data []byte) (T, error) {
 			return v, err
 		}
 	}
+	if sp.normalize != nil {
+		v = sp.normalize(v) // a hand-written file may omit defaults the model fills in
+	}
 	if sp.check != nil {
 		if err := sp.check(v); err != nil {
 			return v, err

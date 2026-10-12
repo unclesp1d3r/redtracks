@@ -289,6 +289,16 @@ func TestNucleiIPHostKeepsSchemeAndPort(t *testing.T) {
 	}
 }
 
+func TestNucleiBareHostOn443IsHTTPS(t *testing.T) {
+	hr, err := nucleiHost("10.10.10.5:443")
+	if err != nil || hr.URL != "https://10.10.10.5:443" {
+		t.Fatalf("nucleiHost = %+v, %v; want https", hr, err)
+	}
+	if hr, err = nucleiHost("10.10.10.5:8080"); err != nil || hr.URL != "http://10.10.10.5:8080" {
+		t.Fatalf("nucleiHost = %+v, %v; want http", hr, err)
+	}
+}
+
 func TestApplySavesRaw(t *testing.T) {
 	st := openSample(t)
 	dir := st.Engagement().Dir

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -56,7 +57,11 @@ func parseNuclei(data []byte) (Result, error) {
 // the web port and service type of findings that carry no port field.
 func nucleiHost(host string) (HostResult, error) {
 	if !strings.Contains(host, "://") {
-		host = "http://" + host
+		scheme := "http://"
+		if strings.HasSuffix(host, ":"+strconv.Itoa(defaultHTTPSPort)) {
+			scheme = "https://" // a bare host:443 is almost always TLS
+		}
+		host = scheme + host
 	}
 	return webBase(host)
 }

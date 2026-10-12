@@ -22,6 +22,39 @@ func (e *ParseError) Error() string {
 // Unwrap returns the underlying decoder error.
 func (e *ParseError) Unwrap() error { return e.Err }
 
+// FileError ties an error to the file it concerns without changing its
+// message, so callers can group errors per file.
+type FileError struct {
+	Path string
+	Err  error
+}
+
+func (e *FileError) Error() string { return e.Err.Error() }
+
+// Unwrap returns the underlying error.
+func (e *FileError) Unwrap() error { return e.Err }
+
+// ErrorPath returns the file err concerns, or "" when none is recorded.
+func ErrorPath(err error) string {
+	var pe *ParseError
+	if errors.As(err, &pe) {
+		return pe.Path
+	}
+	var fe *FileError
+	if errors.As(err, &fe) {
+		return fe.Path
+	}
+	return ""
+}
+
+// withPath attaches path to err unless it already names a file.
+func withPath(path string, err error) error {
+	if err == nil || ErrorPath(err) != "" {
+		return err
+	}
+	return &FileError{Path: path, Err: err}
+}
+
 // decodeJSON unmarshals data into v. Syntax and type errors become a
 // *ParseError with the position derived from the error's byte offset; any
 // other error is wrapped with path.

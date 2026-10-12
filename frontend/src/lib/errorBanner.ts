@@ -22,9 +22,9 @@ function emit(next: readonly ErrorEvent[]) {
 export const errorBanner = {
   get: () => entries,
   add: (ev: ErrorEvent) => emit([...entries.filter((e) => entryKey(e) !== entryKey(ev)), ev]),
-  /** Clears engagement entries for the changed paths, plus entries with no known path. */
+  /** Clears engagement entries for the changed paths. Entries with no path stay until the engagement is reopened. */
   clearChanged: (paths: readonly string[]) =>
-    emit(entries.filter((e) => e.Kind !== "engagement" || (e.Path !== "" && !paths.includes(e.Path)))),
+    emit(entries.filter((e) => e.Kind !== "engagement" || e.Path === "" || !paths.includes(e.Path))),
   clearKind: (kind: ErrorEvent["Kind"]) => emit(entries.filter((e) => e.Kind !== kind)),
   subscribe: (l: () => void) => {
     listeners.add(l);

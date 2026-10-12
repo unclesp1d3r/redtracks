@@ -306,3 +306,38 @@ func TestMutateCredsCreatesNormalisedFile(t *testing.T) {
 		t.Fatalf("creds.json not normalised:\n%s", got)
 	}
 }
+
+func TestReloadErrorsCarryTheFilePath(t *testing.T) {
+	dir := copyFixture(t)
+	s := mustOpen(t, dir)
+	path := filepath.Join(dir, "hosts", fixtureIP, "host.json")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bumpMtime(t, path)
+	_, err := s.Reload()
+	if err == nil || ErrorPath(err) != path {
+		t.Fatalf("Reload err = %v, ErrorPath = %q, want %q", err, ErrorPath(err), path)
+	}
+	if ErrorPath(errors.New("plain")) != "" {
+		t.Fatal("a plain error has no path")
+	}
+}
+
+func TestHandWrittenHostWithoutStatusLoadsAsUntouched(t *testing.T) {
+	dir := copyFixture(t)
+	ip := "10.10.10.9"
+	hostDir := filepath.Join(dir, "hosts", ip)
+	if err := os.MkdirAll(hostDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	minimal := "{\n  \"ip\": \"" + ip + "\"\n}\n"
+	if err := os.WriteFile(filepath.Join(hostDir, "host.json"), []byte(minimal), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := mustOpen(t, dir)
+	h, ok := s.Engagement().Host(ip)
+	if !ok || h.Status != model.HostStatusUntouched {
+		t.Fatalf("host = %+v (found %v), want status untouched", h, ok)
+	}
+}

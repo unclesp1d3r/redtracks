@@ -15,7 +15,7 @@ const (
 
 // ErrorEvent is the payload of the "engagement:error" event. Kind is
 // "engagement" or "checklists". Path is the file, relative to the engagement
-// folder, when the error is a *store.ParseError, and empty when unknown.
+// folder, when the store recorded one (see store.ErrorPath), and empty when unknown.
 type ErrorEvent struct {
 	Kind    string
 	Path    string
@@ -23,7 +23,7 @@ type ErrorEvent struct {
 }
 
 // errorEvents turns err into one ErrorEvent per errors.Join child, with Path
-// made relative to baseDir for parse errors.
+// made relative to baseDir when the error names a file.
 func errorEvents(kind, baseDir string, err error) []ErrorEvent {
 	children := []error{err}
 	var multi interface{ Unwrap() []error }
@@ -33,9 +33,8 @@ func errorEvents(kind, baseDir string, err error) []ErrorEvent {
 	out := make([]ErrorEvent, 0, len(children))
 	for _, child := range children {
 		ev := ErrorEvent{Kind: kind, Message: child.Error()}
-		var pe *store.ParseError
-		if errors.As(child, &pe) {
-			ev.Path = relativeSlash(baseDir, pe.Path)
+		if p := store.ErrorPath(child); p != "" {
+			ev.Path = relativeSlash(baseDir, p)
 		}
 		out = append(out, ev)
 	}

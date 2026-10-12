@@ -307,8 +307,11 @@ func (c ChecklistState) normalize() ChecklistState {
 }
 
 // Normalize returns a copy with nil slices and maps replaced by empty ones so they marshal as [] and {},
-// and an empty service protocol defaulted to tcp.
+// an empty status defaulted to untouched, and an empty service protocol defaulted to tcp.
 func (h Host) Normalize() Host {
+	if h.Status == "" {
+		h.Status = HostStatusUntouched // a hand-written host.json may omit it
+	}
 	h.Tags = orEmpty(h.Tags)
 	h.AccessPaths = orEmpty(h.AccessPaths)
 	h.Flags = orEmpty(h.Flags)

@@ -15,11 +15,17 @@ it("keeps one entry per Kind+Path and replaces repeats", () => {
   expect(errorBanner.get().map((e) => `${e.Path}:${e.Message}`)).toEqual(["b.json:bad", "a.json:newer"]);
 });
 
-it("clears only engagement entries whose path changed, plus path-less ones", () => {
+it("clears only engagement entries whose path changed; path-less ones wait for a reopen", () => {
   errorBanner.add(ev("engagement", "a.json"));
   errorBanner.add(ev("engagement", "b.json"));
   errorBanner.add(ev("engagement", ""));
   errorBanner.add(ev("checklists", ""));
   errorBanner.clearChanged(["a.json"]);
-  expect(errorBanner.get().map((e) => `${e.Kind}:${e.Path}`)).toEqual(["engagement:b.json", "checklists:"]);
+  expect(errorBanner.get().map((e) => `${e.Kind}:${e.Path}`)).toEqual([
+    "engagement:b.json",
+    "engagement:",
+    "checklists:",
+  ]);
+  errorBanner.clearKind("engagement");
+  expect(errorBanner.get().map((e) => `${e.Kind}:${e.Path}`)).toEqual(["checklists:"]);
 });

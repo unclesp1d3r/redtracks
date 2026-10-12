@@ -20,12 +20,16 @@ func TestErrorEventsSplitJoinedErrorsAndRelativisePaths(t *testing.T) {
 	parse := &store.ParseError{
 		Path: filepath.Join(base, "hosts", "10.0.0.1", "host.json"), Line: 1, Col: 1, Err: errors.New("bad"),
 	}
-	joined := errors.Join(parse, errors.New("plain"))
+	fileErr := &store.FileError{Path: filepath.Join(base, "creds.json"), Err: errors.New("invalid")}
+	joined := errors.Join(parse, errors.New("plain"), fileErr)
 
 	got := errorEvents(errorKindEngagement, base, joined)
 
-	if len(got) != 2 {
+	if len(got) != 3 {
 		t.Fatalf("events = %+v, want one per joined error", got)
+	}
+	if got[2].Path != "creds.json" || got[2].Message != "invalid" {
+		t.Fatalf("file error event = %+v", got[2])
 	}
 	first := got[0]
 	if first.Kind != errorKindEngagement || first.Path != "hosts/10.0.0.1/host.json" ||
