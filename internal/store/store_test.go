@@ -146,8 +146,7 @@ func TestMutateCorruptFileRefusesToWrite(t *testing.T) {
 		c.Users = append(c.Users, model.User{ID: "U"})
 		return nil
 	})
-	var pe *ParseError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ParseError](err); !ok {
 		t.Fatalf("want *ParseError, got %v", err)
 	}
 	if raw := readFile(t, path); raw != "{" {
@@ -270,8 +269,7 @@ func TestReloadKeepsLastGoodOnParseError(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := s.Reload()
-	var pe *ParseError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ParseError](err); !ok {
 		t.Fatalf("want *ParseError, got %v", err)
 	}
 	if h, ok := s.Engagement().Host(fixtureIP); !ok || h.Hostname != "nibbles" {

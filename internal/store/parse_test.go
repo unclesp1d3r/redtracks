@@ -62,8 +62,7 @@ func TestDecodeJSONOtherErrorWrappedWithPath(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "x.json") {
 		t.Fatalf("want error naming path, got %v", err)
 	}
-	var pe *ParseError
-	if errors.As(err, &pe) {
+	if _, ok := errors.AsType[*ParseError](err); ok {
 		t.Fatal("non-positional error must not be a ParseError")
 	}
 }

@@ -60,8 +60,7 @@ func TestPollCallsOnChange(t *testing.T) {
 func TestPollReportsParseErrors(t *testing.T) {
 	dir := copyFixture(t)
 	s := mustOpen(t, dir)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	var mu sync.Mutex
 	var onChangeCalls int
 	errCh := make(chan error, 4)
@@ -75,8 +74,7 @@ func TestPollReportsParseErrors(t *testing.T) {
 
 	select {
 	case err := <-errCh:
-		var pe *ParseError
-		if !errors.As(err, &pe) {
+		if _, ok := errors.AsType[*ParseError](err); !ok {
 			t.Fatalf("err = %v, want *ParseError", err)
 		}
 	case <-time.After(pollWait):

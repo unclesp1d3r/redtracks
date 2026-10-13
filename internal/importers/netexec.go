@@ -23,7 +23,7 @@ const (
 func parseNetexec(data []byte) (Result, error) {
 	index := map[string]int{}
 	var hosts []HostResult
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		m := netexecRow.FindStringSubmatch(strings.TrimRight(line, "\r"))
 		if m == nil {
 			continue

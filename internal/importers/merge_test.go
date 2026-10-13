@@ -370,8 +370,7 @@ func TestApplyMidImportFailureReportsProgress(t *testing.T) {
 	if gerr != nil || len(raws) != 0 {
 		t.Errorf("raw files %v saved after a partial failure (err %v)", raws, gerr)
 	}
-	var pe *store.ParseError
-	if !errors.As(err, &pe) {
+	if _, ok := errors.AsType[*store.ParseError](err); !ok {
 		t.Errorf("err = %v, want the parse error to be wrapped", err)
 	}
 	for _, want := range []string{"10.10.10.9", "after writing 1 of 2", "retries safely"} {

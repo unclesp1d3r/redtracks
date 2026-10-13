@@ -130,6 +130,9 @@ linters:
         - io/ioutil.ReadFile
         - io.Copy(*bytes.Buffer)
         - io.Copy(os.Stdout)
+        # AsType's first result is the matched error value, not a failure; the
+        # bool carries the outcome. modernize rewrites errors.As to this form.
+        - errors.AsType
     exhaustive:
       check:
         - switch

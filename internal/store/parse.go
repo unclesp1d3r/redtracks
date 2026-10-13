@@ -36,12 +36,10 @@ func (e *FileError) Unwrap() error { return e.Err }
 
 // ErrorPath returns the file err concerns, or "" when none is recorded.
 func ErrorPath(err error) string {
-	var pe *ParseError
-	if errors.As(err, &pe) {
+	if pe, ok := errors.AsType[*ParseError](err); ok {
 		return pe.Path
 	}
-	var fe *FileError
-	if errors.As(err, &fe) {
+	if fe, ok := errors.AsType[*FileError](err); ok {
 		return fe.Path
 	}
 	return ""

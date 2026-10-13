@@ -59,7 +59,7 @@ func TestAttackGraphEscapesHostileLabels(t *testing.T) {
 	if strings.Contains(got, "<") {
 		t.Fatalf("output contains <:\n%s", got)
 	}
-	for _, line := range strings.Split(got, "\n") {
+	for line := range strings.SplitSeq(got, "\n") {
 		if strings.Count(line, `"`)%2 != 0 || strings.Contains(line, `"]`) && !strings.HasSuffix(line, `"]`) {
 			t.Fatalf("unbalanced or escaped quote in %q", line)
 		}
