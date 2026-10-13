@@ -20,11 +20,16 @@ export function isResolved(c: Choice | undefined): boolean {
   return !!c?.ip && (c.port === "" || validPort(c.port));
 }
 
-/** Builds the Apply overrides map: `ip` or `ip:port`. */
+/** Formats a host:port pair; an IPv6 address is bracketed so its colons stay unambiguous. */
+function hostPort(ip: string, port: string): string {
+  return ip.includes(":") ? `[${ip}]:${port}` : `${ip}:${port}`;
+}
+
+/** Builds the overrides map: `ip`, `ip:port`, or `[ipv6]:port`. */
 export function toOverrides(choices: Choices): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, c] of Object.entries(choices)) {
-    if (isResolved(c)) out[key] = c.port ? `${c.ip}:${c.port}` : c.ip;
+    if (isResolved(c)) out[key] = c.port ? hostPort(c.ip, c.port) : c.ip;
   }
   return out;
 }

@@ -189,7 +189,7 @@ func (s *Store) reloadHosts(note func(path string, changed bool, err error)) {
 		if !e.IsDir() {
 			continue
 		}
-		sp, err := s.hostSpec(e.Name())
+		sp, err := s.hostSpec(ipFromDirName(e.Name()))
 		if err != nil {
 			note(filepath.Join(root, e.Name()), false, err)
 			continue

@@ -100,6 +100,18 @@ func (s *ImportService) preview(raw []byte) (PreviewResponse, error) {
 	return PreviewResponse{Token: token, Preview: importers.BuildPreview(st.Engagement(), res, nil)}, nil
 }
 
+// Repreview recomputes a pending preview with host overrides applied and
+// writes nothing, so the operator sees the rows an override produces before
+// confirming. The token stays valid for Apply.
+func (s *ImportService) Repreview(token string, overrides map[string]string) (importers.Preview, error) {
+	p, ok := s.lookup(token)
+	if !ok {
+		err := fmt.Errorf("%w %q", errUnknownToken, token)
+		return importers.Preview{}, s.app.fail("ImportService.Repreview", err)
+	}
+	return importers.BuildPreview(p.store.Engagement(), p.result, overrides), nil
+}
+
 // Apply merges a previewed import into the engagement; the token is spent on success.
 func (s *ImportService) Apply(token string, overrides map[string]string) (importers.Preview, error) {
 	var out importers.Preview

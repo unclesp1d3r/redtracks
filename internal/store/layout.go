@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/netip"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -34,13 +35,22 @@ func validateIP(ip string) (string, error) {
 	return addr.String(), nil
 }
 
-// hostDir returns hosts/<ip> under dir, or an error if ip is not an address.
+// hostDirName turns a canonical IP into its directory name. IPv6 colons
+// become underscores because ":" is not allowed in Windows file names, and the
+// same name is used on every platform so an engagement folder can move between
+// machines. IPv4 text never contains "_", so ipFromDirName reverses it exactly.
+func hostDirName(canon string) string { return strings.ReplaceAll(canon, ":", "_") }
+
+// ipFromDirName reverses hostDirName.
+func ipFromDirName(name string) string { return strings.ReplaceAll(name, "_", ":") }
+
+// hostDir returns hosts/<hostDirName(ip)> under dir, or an error if ip is not an address.
 func hostDir(dir, ip string) (string, error) {
 	canon, err := validateIP(ip)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, hostsDir, canon), nil
+	return filepath.Join(dir, hostsDir, hostDirName(canon)), nil
 }
 
 // hostPath returns the host.json path for ip.

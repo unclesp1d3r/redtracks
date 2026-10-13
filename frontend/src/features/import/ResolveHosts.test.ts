@@ -41,4 +41,13 @@ describe("toOverrides", () => {
       }),
     ).toEqual({ a: "10.0.0.1", b: "10.0.0.2:8080" });
   });
+
+  it("brackets an IPv6 address when a port is present", () => {
+    expect(
+      toOverrides({
+        a: { ip: "fe80::1", port: "8080" },
+        b: { ip: "fe80::1", port: "" },
+      }),
+    ).toEqual({ a: "[fe80::1]:8080", b: "fe80::1" });
+  });
 });

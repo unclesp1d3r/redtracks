@@ -169,6 +169,14 @@ func TestOverrideResolves(t *testing.T) {
 	}
 }
 
+// The UI brackets IPv6 overrides; "fe80::1:8080" would otherwise parse as a bare address.
+func TestParseOverrideBracketedIPv6(t *testing.T) {
+	ip, port, ok := parseOverride("[fe80::1]:8080")
+	if !ok || ip != "fe80::1" || port != 8080 {
+		t.Fatalf("parseOverride = %q %d %v, want fe80::1 8080 true", ip, port, ok)
+	}
+}
+
 func TestGobusterResolvesByOverrideWithPort(t *testing.T) {
 	st := openSample(t)
 	res, err := Parse(readFixture(t, "gobuster-dir.txt"))

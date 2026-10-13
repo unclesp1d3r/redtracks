@@ -260,6 +260,41 @@ func TestApplyPartialFailureKeepsTokenAndSavesNoRaw(t *testing.T) {
 	}
 }
 
+func TestRepreviewAppliesOverridesWithoutWriting(t *testing.T) {
+	f := openSample(t)
+	imp := NewImportService(f.app)
+	raw, err := os.ReadFile(filepath.Join("..", "importers", "testdata", "gobuster-dir.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := imp.PreviewData("gobuster.txt", base64.StdEncoding.EncodeToString(raw))
+	if err != nil || len(resp.Preview.Unresolved) != 1 || len(resp.Preview.Rows) != 0 {
+		t.Fatalf("preview: err=%v unresolved=%d rows=%d", err, len(resp.Preview.Unresolved), len(resp.Preview.Rows))
+	}
+	hostFile := filepath.Join(f.dir, "hosts", sampleHost, "host.json")
+	before, err := os.ReadFile(hostFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	key := resp.Preview.Unresolved[0].Key
+	again, err := imp.Repreview(resp.Token, map[string]string{key: sampleHost + ":8080"})
+	if err != nil || len(again.Unresolved) != 0 || len(again.Rows) == 0 {
+		t.Fatalf("repreview: err=%v unresolved=%d rows=%d, want the override resolved into rows",
+			err, len(again.Unresolved), len(again.Rows))
+	}
+	after, err := os.ReadFile(hostFile)
+	if err != nil || !bytes.Equal(after, before) {
+		t.Fatalf("Repreview wrote host.json (err %v)", err)
+	}
+	if _, ok := imp.lookup(resp.Token); !ok {
+		t.Fatal("Repreview must keep the token for Apply")
+	}
+	if _, err := imp.Repreview("nope", nil); !errors.Is(err, errUnknownToken) {
+		t.Fatalf("unknown token err = %v", err)
+	}
+}
+
 func TestApplyRefusesPreviewFromAnotherStore(t *testing.T) {
 	f := openSample(t)
 	imp := NewImportService(f.app)

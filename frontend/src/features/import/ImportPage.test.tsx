@@ -8,7 +8,17 @@ vi.mock("@/lib/api", async () => {
   return {
     ...actual,
     EngagementService: { Current: vi.fn().mockResolvedValue({ Hosts: [{ ip: "10.0.0.1" }] }) },
-    ImportService: { Apply: vi.fn(), Discard: vi.fn() },
+    ImportService: {
+      Apply: vi.fn(),
+      Discard: vi.fn(),
+      Repreview: vi.fn().mockResolvedValue({
+        Tool: "gobuster",
+        Rows: [{ Kind: "service", HostIP: "10.0.0.1", Badge: "new", Label: "8080/tcp http" }],
+        Unresolved: [],
+        Dropped: [],
+        Skipped: 0,
+      }),
+    },
   };
 });
 
@@ -55,7 +65,11 @@ describe("ImportPage preview", () => {
 
     fireEvent.click(await screen.findByLabelText("Host for k1"));
     fireEvent.click(await screen.findByRole("option", { name: "10.0.0.1" }));
+    // The override is re-previewed and its rows shown before Confirm enables.
+    expect(await screen.findByText("8080/tcp http")).toBeInTheDocument();
     await waitFor(() => expect(confirm).toBeEnabled());
+    // The unresolved entry stays listed so the choice can still be changed.
+    expect(screen.getByText("k1")).toBeInTheDocument();
   });
 
   it("shows dropped IPs and the skipped count in the header", () => {

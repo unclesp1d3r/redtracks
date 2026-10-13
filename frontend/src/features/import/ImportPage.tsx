@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { TriangleAlertIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -15,7 +15,6 @@ import { isResolved, ResolveHosts, toOverrides, type Choices } from "./ResolveHo
 export function Preview({ response, onDone }: { response: PreviewResponse; onDone: () => void }) {
   const navigate = useNavigate();
   const { Token: token, Preview: preview } = response;
-  const rows = preview.Rows ?? [];
   const unresolved = preview.Unresolved ?? [];
   const dropped = preview.Dropped ?? [];
   const [choices, setChoices] = useState<Choices>({});
@@ -23,8 +22,21 @@ export function Preview({ response, onDone }: { response: PreviewResponse; onDon
   const engagement = useEngagementQuery();
 
   const pending = unresolved.filter((u) => !isResolved(choices[u.Key]));
+  const overrides = toOverrides(choices);
+  const hasOverrides = Object.keys(overrides).length > 0;
+  // An override changes which rows the import writes, so the table is recomputed
+  // with it before Confirm. The unresolved list keeps coming from the original
+  // preview so a choice can still be changed.
+  const repreview = useQuery({
+    queryKey: ["import", token, "repreview", overrides],
+    queryFn: () => ImportService.Repreview(token, overrides),
+    enabled: hasOverrides,
+    placeholderData: keepPreviousData,
+  });
+  const rows = (hasOverrides && repreview.data ? repreview.data.Rows : preview.Rows) ?? [];
+  const previewing = hasOverrides && (repreview.isFetching || !repreview.isSuccess);
   const apply = useMutation({
-    mutationFn: () => ImportService.Apply(token, toOverrides(choices)),
+    mutationFn: () => ImportService.Apply(token, overrides),
     onSuccess: (applied) => {
       const count = (b: string) => (applied.Rows ?? []).filter((r) => r.Badge === b).length;
       toast.success(
@@ -48,6 +60,11 @@ export function Preview({ response, onDone }: { response: PreviewResponse; onDon
             {dropped.length > 0 && `Dropped ${dropped.length} invalid IP${dropped.length === 1 ? "" : "s"}: ${dropped.join(", ")}. `}
             {preview.Skipped > 0 && `Skipped ${preview.Skipped} unreadable row${preview.Skipped === 1 ? "" : "s"}.`}
           </span>
+        </p>
+      )}
+      {repreview.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          Could not preview the resolved hosts: {String(repreview.error)}
         </p>
       )}
       {rows.length > 0 ? (
@@ -77,7 +94,7 @@ export function Preview({ response, onDone }: { response: PreviewResponse; onDon
         </section>
       )}
       <div className="flex gap-2">
-        <Button disabled={busy || (pending.length > 0 && !skip)} onClick={() => apply.mutate()}>
+        <Button disabled={busy || previewing || (pending.length > 0 && !skip)} onClick={() => apply.mutate()}>
           Confirm
         </Button>
         <Button variant="outline" disabled={busy} onClick={() => discard.mutate()}>

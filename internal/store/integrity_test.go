@@ -277,11 +277,15 @@ func TestIPv6HostIsCanonicalised(t *testing.T) {
 	if err := s.AddHost(model.Host{ID: "V6", IP: "FE80::1", Status: model.HostStatusUntouched}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "hosts", "fe80::1", "host.json")); err != nil {
+	// Colons are not allowed in Windows file names, so the directory uses underscores.
+	if _, err := os.Stat(filepath.Join(dir, "hosts", "fe80__1", "host.json")); err != nil {
 		t.Fatal(err)
 	}
 	if h, ok := s.Engagement().Host("fe80::1"); !ok || h.IP != "fe80::1" {
 		t.Fatalf("host = %+v ok=%v", h, ok)
+	}
+	if h, ok := mustOpen(t, dir).Engagement().Host("fe80::1"); !ok || h.IP != "fe80::1" {
+		t.Fatalf("after reopen host = %+v ok=%v, want the directory name decoded back to the IP", h, ok)
 	}
 	err := s.MutateHost("FE80::1", func(h *model.Host) error { h.Hostname = "v6"; return nil })
 	if err != nil {
