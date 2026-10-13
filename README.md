@@ -4,23 +4,25 @@ Offline engagement tracker for pentests and CTFs: hosts, services, flags, creden
 
 ## Install
 
-The toolchain (Go, Wails, bun, golangci-lint) is pinned in `mise.toml`.
+The toolchain (Go, Wails, bun, golangci-lint, just) is pinned in `mise.toml`. Install mise, then:
 
 ```sh
 mise install
-cd frontend && bun install
+just install    # git hooks, Go modules, frontend deps
 ```
+
+Run `just` with no arguments to list every recipe.
 
 ## Run
 
 ```sh
-mise exec -- wails3 task dev
+just dev
 ```
 
 If the native window is unavailable, run the same app as a local HTTP server and open <http://localhost:8080>:
 
 ```sh
-mise exec -- wails3 task run:server
+just run-server
 ```
 
 The server listens on localhost only and has no authentication.
@@ -28,9 +30,10 @@ The server listens on localhost only and has no authentication.
 ## Test
 
 ```sh
-mise exec -- wails3 task test   # Go and frontend unit tests
-mise exec -- wails3 task lint   # go vet, golangci-lint, tsc
-mise exec -- wails3 task e2e    # Playwright against the server build
+just test       # Go (-race) and frontend unit tests
+just lint       # go vet, golangci-lint, modernize, tsc, markdownlint
+just e2e        # Playwright against a fresh server build
+just ci-check   # pre-commit hooks, format check, lint, test
 ```
 
 ## Where data lives

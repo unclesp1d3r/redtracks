@@ -19,24 +19,27 @@ RedTracks is an **offline, single-user** Wails v3 desktop app (Go backend, embed
 ## Setup
 
 ```bash
-mise install    # installs the pinned toolchain (Go, bun, wails3, linters, ...)
+mise install    # installs the pinned toolchain (Go, bun, wails3, just, linters, ...)
+just install    # git hooks, go mod tidy, bun install
 ```
 
-Run tools through `mise exec -- <cmd>` (or activate a mise shell). The package manager is **bun**, not npm/pnpm.
+[just](https://just.systems/) is the front door; `just` alone lists every recipe. Recipes run tools through `mise exec`, so an activated mise shell is not required. The package manager is **bun**, not npm/pnpm.
 
 ## Common commands
 
 ```bash
-mise exec -- wails3 task dev          # run the app in development (native window)
-mise exec -- wails3 task run:server   # server mode; open http://localhost:8080
-mise exec -- wails3 task build        # build the desktop app -> bin/redtracks
-mise exec -- wails3 task test         # go test ./... + frontend vitest run
-mise exec -- wails3 task lint         # go vet, golangci-lint, frontend tsc --noEmit
-mise exec -- wails3 task e2e          # Playwright happy-path against the server build
-mise exec -- wails3 task common:generate:bindings   # regenerate TS bindings
+just dev          # run the app in development (native window)
+just run-server   # server mode; open http://localhost:8080
+just build        # build the desktop app -> bin/redtracks
+just test         # go test -race ./... + frontend vitest run
+just lint         # go vet, golangci-lint, modernize, frontend tsc --noEmit, markdownlint
+just format       # golangci-lint fmt + modernize -fix
+just e2e          # Playwright against a fresh server build
+just bindings     # regenerate TS bindings
+just ci-check     # pre-commit hooks, format check, lint, test
 ```
 
-Run `test` and `lint` before considering a change done. Go store/importer tests are expected to pass under `-race`.
+The Wails build pipeline itself lives in `Taskfile.yml` and `build/*/Taskfile.yml`; the build, dev, server, docker, and bindings recipes delegate to `wails3 task`. Run `just test` and `just lint` before considering a change done. Go store/importer tests are expected to pass under `-race`.
 
 ## Conventions that matter
 

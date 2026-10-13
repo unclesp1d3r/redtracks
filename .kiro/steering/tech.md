@@ -20,25 +20,27 @@ RedTracks is a [Wails v3](https://v3.wails.io/) desktop app: a Go backend with a
 
 ## Toolchain
 
-- [mise](https://mise.jdx.dev/) manages all tools; run commands through `mise exec -- <cmd>` (or in an activated mise shell). Install with `mise install`.
-- [Task](https://taskfile.dev/) (`wails3 task ...`) is the task runner; the root `Taskfile.yml` dispatches to per-platform files under `build/`.
+- [mise](https://mise.jdx.dev/) manages all tools; install with `mise install`. Ad-hoc commands run through `mise exec -- <cmd>` (or in an activated mise shell).
+- [just](https://just.systems/) is the front door for every workflow (`justfile` at the repo root; `just` alone lists recipes). Recipes invoke tools through `mise exec`.
+- [Task](https://taskfile.dev/) (`wails3 task ...`) owns the Wails build pipeline; the root `Taskfile.yml` dispatches to per-platform files under `build/`. The just build, dev, server, docker, and bindings recipes delegate to it.
 - Lint/format: `golangci-lint` (config in `.golangci.yml`), `gofumpt`, `goimports`, `gci`, `golines` (max line length 120); frontend type-checks with `tsc`.
 - pre-commit hooks and markdownlint/mdformat are configured at the repo root.
 
 ## Common commands
 
-Run via mise, e.g. `mise exec -- wails3 task dev`.
-
 ```bash
 mise install                      # install the pinned toolchain
-wails3 task dev                   # run the app in development (native window)
-wails3 task run:server            # server mode; open http://localhost:8080 fallback
-wails3 task build                 # build the desktop app -> bin/redtracks
-wails3 task package               # production package for the host OS
-wails3 task test                  # go test ./... + frontend vitest run
-wails3 task lint                  # go vet, golangci-lint, frontend tsc --noEmit
-wails3 task e2e                   # Playwright happy-path against the server build
-wails3 task common:generate:bindings   # regenerate TypeScript bindings
+just install                      # git hooks, go mod tidy, bun install
+just dev                          # run the app in development (native window)
+just run-server                   # server mode; open http://localhost:8080 fallback
+just build                        # build the desktop app -> bin/redtracks
+just package                      # production package for the host OS
+just test                         # go test -race ./... + frontend vitest run
+just lint                         # go vet, golangci-lint, modernize, tsc --noEmit, markdownlint
+just format                       # golangci-lint fmt + modernize -fix
+just e2e                          # Playwright happy-path against a fresh server build
+just bindings                     # regenerate TypeScript bindings
+just ci-check                     # pre-commit hooks, format check, lint, test
 ```
 
 Frontend-only (from `frontend/`): `bun run dev`, `bun run build`, `bun run vitest run`.
@@ -46,5 +48,5 @@ Frontend-only (from `frontend/`): `bun run dev`, `bun run build`, `bun run vites
 ## Verification expectations
 
 - Go packages under `internal/` target 80% line coverage.
-- Run `test` and `lint` before considering a change done; Go store/importer tests are expected to pass under `-race`.
+- Run `just test` and `just lint` before considering a change done; Go store/importer tests are expected to pass under `-race`.
 - The headless server build binds to `localhost` only and carries no auth.

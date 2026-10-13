@@ -17,28 +17,6 @@ includes:
   linux: ./build/linux/Taskfile.yml
 
 tasks:
-  test:
-    summary: Runs Go and frontend tests
-    deps: [common:generate:bindings]
-    cmds:
-      - go test -race ./...
-      - cd frontend && bun run vitest run
-
-  lint:
-    summary: Lints Go and type-checks the frontend
-    deps: [common:generate:bindings]
-    cmds:
-      - go vet ./...
-      - mise exec golangci-lint -- golangci-lint run ./...
-      - cd frontend && bunx tsc --noEmit
-
-  e2e:
-    summary: Runs Playwright end-to-end tests against the server build
-    deps: [build:server]
-    cmds:
-      - cd frontend && bunx playwright install chromium
-      - cd frontend && bunx playwright test
-
   build:
     summary: Builds the application
     cmds:

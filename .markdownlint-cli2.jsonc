@@ -38,6 +38,9 @@
   ],
   "ignores": [
     "CHANGELOG.md",
+    ".kiro/specs/**",
+    "docs/plans/**",
+    "docs/superpowers/**",
     "**/node_modules/**",
     "frontend/dist/**",
     "frontend/bindings/**"
