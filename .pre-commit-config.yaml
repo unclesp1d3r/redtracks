@@ -46,7 +46,9 @@ repos:
         # CHANGELOG.md would be generated; reformatting it only causes churn.
         exclude: (^|/)CHANGELOG\.md$
 
-  # Go linting — mirrors `just lint-go`. Uses local hooks that
+  # Go formatting and linting — the same golangci-lint invocations as
+  # `just format` and `just lint-fix` (go vet and modernize run only in
+  # `just lint-go`). Uses local hooks that
   # delegate to the mise-pinned golangci-lint (see mise.toml) to keep a
   # single source of truth for the toolchain version. The upstream
   # `golangci/golangci-lint` pre-commit repo builds the binary via `go install`,

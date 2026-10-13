@@ -60,13 +60,19 @@ func TestPollCallsOnChange(t *testing.T) {
 func TestPollReportsParseErrors(t *testing.T) {
 	dir := copyFixture(t)
 	s := mustOpen(t, dir)
-	ctx := t.Context()
+	ctx, cancel := context.WithCancel(t.Context())
 	var mu sync.Mutex
 	var onChangeCalls int
 	errCh := make(chan error, 4)
-	go s.Poll(ctx, pollEvery,
-		func([]string) { mu.Lock(); onChangeCalls++; mu.Unlock() },
-		func(err error) { errCh <- err })
+	done := make(chan struct{})
+	go func() {
+		s.Poll(ctx, pollEvery,
+			func([]string) { mu.Lock(); onChangeCalls++; mu.Unlock() },
+			func(err error) { errCh <- err })
+		close(done)
+	}()
+	// Stop Poll before TempDir cleanup removes the directory it is reading.
+	t.Cleanup(func() { cancel(); <-done })
 
 	path := filepath.Join(dir, hostRel)
 	mustWrite(t, path, "{")

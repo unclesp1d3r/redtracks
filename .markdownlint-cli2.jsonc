@@ -32,7 +32,6 @@
     "fenced-code-language": true
   },
   "gitignore": true,
-  "fix": true,
   "globs": [
     "**/*.md"
   ],

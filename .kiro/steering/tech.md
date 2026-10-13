@@ -22,15 +22,15 @@ RedTracks is a [Wails v3](https://v3.wails.io/) desktop app: a Go backend with a
 
 - [mise](https://mise.jdx.dev/) manages all tools; install with `mise install`. Ad-hoc commands run through `mise exec -- <cmd>` (or in an activated mise shell).
 - [just](https://just.systems/) is the front door for every workflow (`justfile` at the repo root; `just` alone lists recipes). Recipes invoke tools through `mise exec`.
-- [Task](https://taskfile.dev/) (`wails3 task ...`) owns the Wails build pipeline; the root `Taskfile.yml` dispatches to per-platform files under `build/`. The just build, dev, server, docker, and bindings recipes delegate to it.
-- Lint/format: `golangci-lint` (config in `.golangci.yml`), `gofumpt`, `goimports`, `gci`, `golines` (max line length 120); frontend type-checks with `tsc`.
+- [Task](https://taskfile.dev/) (`wails3 task ...`) owns the Wails build pipeline; the root `Taskfile.yml` dispatches to per-platform files under `build/`. The just build, package, run, dev, server, docker, and bindings recipes delegate to it.
+- Lint/format: `golangci-lint` (config in `.golangci.yml`), `gofumpt`, `goimports`, `gci`, `golines` (max line length 120); `modernize` (gopls analyzers, dry run in `just lint`, `-fix` in `just format`); frontend type-checks with `tsc`; markdown via `markdownlint-cli2`.
 - pre-commit hooks and markdownlint/mdformat are configured at the repo root.
 
 ## Common commands
 
 ```bash
 mise install                      # install the pinned toolchain
-just install                      # git hooks, go mod tidy, bun install
+just install                      # pinned tools, git hooks, go mod tidy, bun install
 just dev                          # run the app in development (native window)
 just run-server                   # server mode; open http://localhost:8080 fallback
 just build                        # build the desktop app -> bin/redtracks

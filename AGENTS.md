@@ -20,10 +20,10 @@ RedTracks is an **offline, single-user** Wails v3 desktop app (Go backend, embed
 
 ```bash
 mise install    # installs the pinned toolchain (Go, bun, wails3, just, linters, ...)
-just install    # git hooks, go mod tidy, bun install
+just install    # pinned tools, git hooks, go mod tidy, bun install
 ```
 
-[just](https://just.systems/) is the front door; `just` alone lists every recipe. Recipes run tools through `mise exec`, so an activated mise shell is not required. The package manager is **bun**, not npm/pnpm.
+[just](https://just.systems/) is the front door; `just` alone lists every recipe. `just` is itself mise-pinned, so run it from an activated mise shell, via the mise shims, or as `mise exec -- just <recipe>`; recipes then call `mise exec` internally, so nothing else needs activating. The package manager is **bun**, not npm/pnpm.
 
 ## Common commands
 
@@ -39,7 +39,7 @@ just bindings     # regenerate TS bindings
 just ci-check     # pre-commit hooks, format check, lint, test
 ```
 
-The Wails build pipeline itself lives in `Taskfile.yml` and `build/*/Taskfile.yml`; the build, dev, server, docker, and bindings recipes delegate to `wails3 task`. Run `just test` and `just lint` before considering a change done. Go store/importer tests are expected to pass under `-race`.
+The Wails build pipeline itself lives in `Taskfile.yml` and `build/*/Taskfile.yml`; the build, package, run, dev, server, docker, and bindings recipes delegate to `wails3 task`. Run `just test` and `just lint` before considering a change done. Go store/importer tests are expected to pass under `-race`.
 
 ## Conventions that matter
 

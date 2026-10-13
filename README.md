@@ -8,10 +8,10 @@ The toolchain (Go, Wails, bun, golangci-lint, just) is pinned in `mise.toml`. In
 
 ```sh
 mise install
-just install    # git hooks, Go modules, frontend deps
+just install    # pinned tools, git hooks, Go modules, frontend deps
 ```
 
-Run `just` with no arguments to list every recipe.
+`just` is itself one of the pinned tools, so until mise is activated in your shell run it as `mise exec -- just <recipe>`. Run `just` with no arguments to list every recipe.
 
 ## Run
 

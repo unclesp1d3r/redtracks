@@ -1,6 +1,7 @@
 package importers
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -44,6 +45,16 @@ func TestParseEnum4linuxIPTargetAndBadDomain(t *testing.T) {
 
 func TestParseNetexec(t *testing.T) {
 	res, err := Parse(readFixture(t, "netexec-smb.txt"))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	assertNetexecFixture(t, res)
+}
+
+// Output captured on Windows arrives with CRLF line endings.
+func TestParseNetexecCRLF(t *testing.T) {
+	data := bytes.ReplaceAll(readFixture(t, "netexec-smb.txt"), []byte("\n"), []byte("\r\n"))
+	res, err := Parse(data)
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
