@@ -1,0 +1,19 @@
+{
+  "id": "PGSAMPLE01",
+  "name": "pg-nibbles",
+  "type": "lab",
+  "domain": "",
+  "flagTypes": [
+    {
+      "id": "local",
+      "label": "Local",
+      "points": 10
+    },
+    {
+      "id": "proof",
+      "label": "Proof",
+      "points": 10
+    }
+  ],
+  "createdAt": "2026-10-12T14:00:00Z"
+}

@@ -1,0 +1,20 @@
+flowchart LR
+  attacker["attacker"]
+  h_10_0_0_5["10.0.0.5 (web01)"]
+  h_10_0_0_6["10.0.0.6 (app01)"]
+  h_10_0_0_10["10.0.0.10 (dc01)"]
+  h_fe80__1["fe80::1"]
+  attacker -->|"sqli"| h_10_0_0_5
+  h_10_0_0_5 -->|"ssh"| h_10_0_0_6
+  h_10_0_0_6 -->|"winrm"| h_10_0_0_10
+  attacker -->|"kerberoast"| h_10_0_0_10
+  class h_10_0_0_5 st_foothold
+  class h_10_0_0_6 st_user
+  class h_10_0_0_10 st_root
+  class h_fe80__1 st_untouched
+  classDef st_untouched fill:#3b3f4a
+  classDef st_enumerating fill:#1d4ed8
+  classDef st_foothold fill:#b45309
+  classDef st_user fill:#a16207
+  classDef st_root fill:#b91c1c
+  classDef st_done fill:#15803d

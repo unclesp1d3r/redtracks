@@ -1,0 +1,4 @@
+{"type":"configuration","url":"http://app.example.test:8080/","threads":50}
+{"type":"response","url":"http://app.example.test:8080/admin","path":"/admin","status":301,"content_length":169,"method":"GET"}
+{"type":"response","url":"http://app.example.test:8080/images/logo.png","path":"/images/logo.png","status":200,"content_length":5120,"method":"GET"}
+{"type":"statistics","requests":4614,"timeouts":0}

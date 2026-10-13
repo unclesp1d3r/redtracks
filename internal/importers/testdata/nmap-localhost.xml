@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///opt/homebrew/bin/../share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.991 scan initiated Mon Oct 12 13:00:38 2026 as: /opt/homebrew/bin/nmap -sV -p 22,80,443,631 -oX nmap-localhost.xml 127.0.0.1 -->
+<nmaprun scanner="nmap" args="/opt/homebrew/bin/nmap -sV -p 22,80,443,631 -oX nmap-localhost.xml 127.0.0.1" start="1791824438" startstr="Mon Oct 12 13:00:38 2026" version="7.991" xmloutputversion="1.05">
+<scaninfo type="connect" protocol="tcp" numservices="4" services="22,80,443,631"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<hosthint><status state="up" reason="unknown-response" reason_ttl="0"/>
+<address addr="127.0.0.1" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+</hosthint>
+<host starttime="1791824438" endtime="1791824438"><status state="up" reason="conn-refused" reason_ttl="0"/>
+<address addr="127.0.0.1" addrtype="ipv4"/>
+<hostnames>
+<hostname name="localhost" type="PTR"/>
+</hostnames>
+<ports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="ssh" product="OpenSSH" version="10.3" extrainfo="protocol 2.0" method="probed" conf="10"><cpe>cpe:/a:openbsd:openssh:10.3</cpe></service></port>
+<port protocol="tcp" portid="80"><state state="closed" reason="conn-refused" reason_ttl="0"/><service name="http" method="table" conf="3"/></port>
+<port protocol="tcp" portid="443"><state state="closed" reason="conn-refused" reason_ttl="0"/><service name="https" method="table" conf="3"/></port>
+<port protocol="tcp" portid="631"><state state="closed" reason="conn-refused" reason_ttl="0"/><service name="ipp" method="table" conf="3"/></port>
+</ports>
+<times srtt="39" rttvar="1591" to="100000"/>
+</host>
+<runstats><finished time="1791824438" timestr="Mon Oct 12 13:00:38 2026" summary="Nmap done at Mon Oct 12 13:00:38 2026; 1 IP address (1 host up) scanned in 0.18 seconds" elapsed="0.18" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>

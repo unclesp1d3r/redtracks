@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.1.0"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.1.0",
+			"CompanyName": "UncleSp1d3r",
+			"FileDescription": "Offline engagement tracker for pentests and CTFs",
+			"LegalCopyright": "(c) 2026, UncleSp1d3r",
+			"ProductName": "RedTracks",
+			"Comments": "Hosts, services, flags, credentials, and what is left to try, in plain files with no network"
+		}
+	}
+}

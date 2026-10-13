@@ -1,0 +1,45 @@
+{
+  "id": "ssh",
+  "title": "SSH",
+  "match": {
+    "serviceTypes": ["ssh"]
+  },
+  "items": [
+    {
+      "id": "ssh.banner",
+      "title": "Banner and version grab",
+      "hint": "Check for known-vulnerable OpenSSH versions",
+      "commands": ["nc -nv $T 22", "ssh -V"]
+    },
+    {
+      "id": "ssh.auth",
+      "title": "Supported auth methods",
+      "hint": "Password, pubkey, keyboard-interactive",
+      "commands": ["ssh -v $T 2>&1 | grep -i auth"]
+    },
+    {
+      "id": "ssh.userenum",
+      "title": "Username enumeration (timing)",
+      "hint": "Only on older OpenSSH builds",
+      "commands": []
+    },
+    {
+      "id": "ssh.bruteforce",
+      "title": "Credential spray",
+      "hint": "Found creds first, generic wordlists last resort",
+      "commands": ["hydra -L users.txt -P passwords.txt ssh://$T"]
+    },
+    {
+      "id": "ssh.keys",
+      "title": "Reused or leaked private keys",
+      "hint": "Check loot and found files for id_rsa and similar",
+      "commands": []
+    },
+    {
+      "id": "ssh.agentforward",
+      "title": "Agent forwarding and tunnelling opportunities",
+      "hint": "",
+      "commands": []
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "id": "windows-privesc",
+  "title": "Windows Privilege Escalation",
+  "match": {
+    "hostOS": ["windows"]
+  },
+  "items": [
+    {
+      "id": "windows-privesc.whoami",
+      "title": "whoami /priv and group membership",
+      "hint": "",
+      "commands": ["whoami /priv", "whoami /groups"]
+    },
+    {
+      "id": "windows-privesc.services",
+      "title": "Unquoted service paths and weak service permissions",
+      "hint": "",
+      "commands": ["wmic service get name,displayname,pathname,startmode"]
+    },
+    {
+      "id": "windows-privesc.scheduled",
+      "title": "Scheduled tasks",
+      "hint": "",
+      "commands": ["schtasks /query /fo LIST /v"]
+    },
+    {
+      "id": "windows-privesc.autoruns",
+      "title": "AutoRuns and startup entries",
+      "hint": "",
+      "commands": []
+    },
+    {
+      "id": "windows-privesc.creds",
+      "title": "Stored credentials",
+      "hint": "unattend.xml, web.config, PowerShell history, saved RDP/WiFi creds",
+      "commands": ["type C:\\Windows\\Panther\\Unattend.xml"]
+    },
+    {
+      "id": "windows-privesc.tokens",
+      "title": "Token impersonation opportunities",
+      "hint": "SeImpersonatePrivilege, SeAssignPrimaryToken and similar",
+      "commands": []
+    },
+    {
+      "id": "windows-privesc.patchlevel",
+      "title": "Patch level and known local exploits",
+      "hint": "",
+      "commands": ["systeminfo"]
+    },
+    {
+      "id": "windows-privesc.automated",
+      "title": "Automated enumeration",
+      "hint": "",
+      "commands": ["winpeas.exe"]
+    }
+  ]
+}

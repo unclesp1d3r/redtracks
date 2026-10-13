@@ -1,0 +1,224 @@
+# yaml-language-server: $schema=https://golangci-lint.run/jsonschema/golangci.jsonschema.json
+version: "2"
+
+run:
+  concurrency: 8
+  timeout: 30m
+  issues-exit-code: 1
+  tests: true
+  modules-download-mode: readonly
+  allow-parallel-runners: false
+
+linters:
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - canonicalheader
+    - containedctx
+    - copyloopvar
+    - cyclop
+    - decorder
+    - dupl
+    - durationcheck
+    - embeddedstructfieldcheck
+    - errchkjson
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    # exhaustruct is off: partial struct literals with zero-valued optional fields are the idiom here.
+    - exptostd
+    - fatcontext
+    - forbidigo
+    - funcorder
+    - funlen
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - gocognit
+    - goconst
+    - gocritic
+    - godot
+    - gomoddirectives
+    - goprintffuncname
+    - gosec
+    - govet
+    - iface
+    - inamedparam
+    - ineffassign
+    - intrange
+    - loggercheck
+    - makezero
+    - mirror
+    - mnd
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
+    - nolintlint
+    - nonamedreturns
+    - nosprintfhostport
+    - perfsprint
+    # prealloc is off: it recommends over-allocation for the common empty-result case.
+    - predeclared
+    - reassign
+    - recvcheck
+    - revive
+    - sloglint
+    - staticcheck
+    # tagliatelle is off: JSON tags are camelCase by convention and checked in tests.
+    - testableexamples
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - std-error-handling
+
+  disable:
+    - gomodguard # Disabled: maybe someday, but not important right now
+    - gocyclo # Disabled in favor of cyclop (which supersedes it with per-package averages)
+    - testpackage # Disabled: tests live in the same package to exercise unexported helpers
+    - gochecknoglobals # Disabled: package-level lookup tables (importer registry, status fills) are intentional
+  settings:
+    cyclop:
+      # 25 rather than the default 15; tighten once the parsers settle.
+      max-complexity: 25
+      package-average: 10.0
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - hugeParam
+        - rangeExprCopy
+        - rangeValCopy
+      settings:
+        captLocal:
+          paramsOnly: false
+        underef:
+          skipRecvDeref: false
+
+    embeddedstructfieldcheck:
+      forbid-mutex: true
+
+    goconst:
+      # Test fixtures repeat literals by design; count production code only.
+      ignore-tests: true
+      min-occurrences: 3
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+      exclude-functions:
+        - io/ioutil.ReadFile
+        - io.Copy(*bytes.Buffer)
+        - io.Copy(os.Stdout)
+        # AsType's first result is the matched error value, not a failure; the
+        # bool carries the outcome. modernize rewrites errors.As to this form.
+        - errors.AsType
+    exhaustive:
+      check:
+        - switch
+        - map
+      # A switch with a default branch counts as exhaustive.
+      default-signifies-exhaustive: true
+    forbidigo:
+      analyze-types: true
+    funcorder:
+      struct-method: false
+    funlen:
+      # 120 lines / 80 statements; declarative tables carry //nolint:funlen with a reason.
+      lines: 120
+      statements: 80
+    gochecksumtype:
+      default-signifies-exhaustive: false
+    gocognit:
+      # 40 rather than the default 15; tighten once the parsers settle.
+      min-complexity: 40
+
+    gosec:
+      excludes:
+        - G301 # Directory modes are set explicitly by the store (0700); the linter cannot see that
+        - G304 # Reading operator-chosen files (scan output, engagement folders) is the product
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # Disabled: this is a known issue with the govet tool
+        - shadow # Disabled temporarily to focus on other issues first
+    inamedparam:
+      skip-single-param: true
+
+    nestif:
+      # 8 rather than the default 5.
+      min-complexity: 8
+
+    mnd:
+      ignored-functions:
+        - args.Error
+        - flag.Arg
+        - flag.Duration.*
+        - flag.Float.*
+        - flag.Int.*
+        - flag.Uint.*
+        - os.Chmod
+        - os.Mkdir.*
+        - os.OpenFile
+        - os.WriteFile
+
+    nakedret:
+      max-func-lines: 1
+    nolintlint:
+      allow-no-explanation: [funlen, gocognit, golines]
+      require-explanation: true
+      require-specific: true
+    sloglint:
+      no-global: all
+      context: scope
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -ST1016
+        - -QF1008
+    usetesting:
+      os-temp-dir: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
+  uniq-by-line: true
+  # `fix` stays unset so `golangci-lint run` reports formatting drift instead of hiding it;
+  # the pre-commit hook and `golangci-lint fmt` do the rewriting.
+formatters:
+  enable:
+    - golines
+    - gofumpt
+    - goimports
+    - gci
+  settings:
+    gofumpt:
+      module-path: "github.com/unclesp1d3r/redtracks"
+      extra:
+        group-params: true
+    golines:
+      max-len: 120
+  exclusions:
+    generated: lax

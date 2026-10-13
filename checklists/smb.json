@@ -1,0 +1,51 @@
+{
+  "id": "smb",
+  "title": "SMB",
+  "match": {
+    "serviceTypes": ["microsoft-ds", "netbios-ssn", "smb"]
+  },
+  "items": [
+    {
+      "id": "smb.null",
+      "title": "Null and guest session check",
+      "hint": "",
+      "commands": ["smbclient -L //$T/ -N", "enum4linux-ng -A $T"]
+    },
+    {
+      "id": "smb.shares",
+      "title": "Share enumeration and access",
+      "hint": "List, then try to read and write to each share",
+      "commands": ["smbmap -H $T"]
+    },
+    {
+      "id": "smb.signing",
+      "title": "SMB signing status",
+      "hint": "Unsigned SMB is a relay target",
+      "commands": ["nmap --script smb2-security-mode -p445 $T"]
+    },
+    {
+      "id": "smb.users",
+      "title": "User and group enumeration",
+      "hint": "",
+      "commands": ["rpcclient -U '' -N $T -c 'enumdomusers'"]
+    },
+    {
+      "id": "smb.secrets",
+      "title": "Secrets in shares",
+      "hint": "Search readable shares for creds, scripts, and config files",
+      "commands": []
+    },
+    {
+      "id": "smb.eternalblue",
+      "title": "MS17-010 and other known SMB CVEs",
+      "hint": "",
+      "commands": ["nmap --script smb-vuln-ms17-010 -p445 $T"]
+    },
+    {
+      "id": "smb.gpp",
+      "title": "Group Policy Preferences passwords",
+      "hint": "SYSVOL share, Groups.xml and similar files",
+      "commands": []
+    }
+  ]
+}

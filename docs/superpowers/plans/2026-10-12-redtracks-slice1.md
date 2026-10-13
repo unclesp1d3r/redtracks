@@ -40,12 +40,14 @@ Inputs the spec implies but does not spell out. Each has a test pinned to the ow
 ### Task 1: Scaffold, toolchain, and build pipeline
 
 **Files:**
+
 - Create: `mise.toml`, `LICENSE`, `.gitignore`, `README.md`
 - Create via `wails3 init`: `main.go`, `go.mod`, `Taskfile.yml`, `build/`, `frontend/`
 - Modify: `Taskfile.yml` (add `test`, `lint`, `e2e` tasks), `frontend/package.json`, `frontend/vite.config.ts`, `frontend/tsconfig.json`
 - Modify: `docs/superpowers/specs/2026-10-12-redtracks-slice1-design.md` section 12 layout (replace `cmd/redtracks/` with `main.go` at root and `internal/app/`)
 
 **Interfaces:**
+
 - Produces: a repo where `wails3 task build`, `wails3 task test`, and `wails3 task lint` all succeed with no application code yet.
 
 - [ ] **Step 1: Write `mise.toml` at repo root**
@@ -60,8 +62,9 @@ staticcheck = "latest"
 "go:github.com/wailsapp/wails/v3/cmd/wails3" = "v3.0.0-beta.28"
 ```
 
-Run: `mise install && mise exec -- wails3 version`
-Expected: prints `v3.0.0-beta.28`.
+- Run: `mise install && mise exec -- wails3 version`
+
+- Expected: prints `v3.0.0-beta.28`.
 
 - [ ] **Step 2: Scaffold with the React template into a temp dir and move it in**
 
@@ -81,9 +84,10 @@ In `frontend/index.html` set `<html class="dark">`. In `frontend/src/index.css`,
 
 - [ ] **Step 6: Add Taskfile tasks**
 
-Append to `Taskfile.yml` under `tasks:`:
+Add these entries to the `tasks:` map in `Taskfile.yml`:
 
 ```yaml
+tasks:
   test:
     cmds:
       - go test ./...
@@ -100,7 +104,7 @@ Append to `Taskfile.yml` under `tasks:`:
 
 - [ ] **Step 7: Add LICENSE, .gitignore, README**
 
-`LICENSE` is the Apache-2.0 text with copyright `2026 UncleSp1d3r`. `.gitignore` adds `bin/`, `frontend/dist/`, `frontend/node_modules/`, `frontend/bindings/`, `frontend/test-results/`. `README.md` is four lines: name, one-sentence purpose, `mise install`, `wails3 task dev`.
+`LICENSE` is the Apache-2.0 text with copyright `2026 UncleSp1d3r`. `.gitignore` adds `bin/`, `frontend/dist/`, `frontend/node_modules/`, `frontend/bindings/`, `frontend/test-results/`. `README.md` is five lines: name, one-sentence purpose, `mise install`, `wails3 task dev`, and a line on the server build: `wails3 task run:server` then open `http://localhost:8080` when the native window is unavailable.
 
 - [ ] **Step 8: Amend spec section 12**
 
@@ -108,8 +112,9 @@ Replace the `cmd/redtracks/` line in the repository layout with `main.go` and `i
 
 - [ ] **Step 9: Verify**
 
-Run: `wails3 task build && wails3 task lint && wails3 task test`
-Expected: all exit 0. `bin/redtracks` exists. Open it once: a window titled RedTracks appears with dark background.
+- Run: `wails3 task build && wails3 task lint && wails3 task test`
+
+- Expected: all exit 0. `bin/redtracks` exists. Open it once: a window titled RedTracks appears with dark background.
 
 - [ ] **Step 10: Commit**
 
@@ -123,10 +128,12 @@ git commit -s -m "chore: scaffold Wails v3 app with mise toolchain, Tailwind, an
 ### Task 2: Model package
 
 **Files:**
+
 - Create: `internal/model/model.go`, `internal/model/ids.go`, `internal/model/flags.go`
 - Test: `internal/model/model_test.go`
 
 **Interfaces:**
+
 - Produces, all in package `model`, JSON tags in camelCase matching the spec's `host.json` example:
 
 ```go
@@ -160,21 +167,25 @@ func (e Engagement) Host(ip string) (Host, bool)
 
 - [ ] **Step 1: Write failing tests**
 
-`TestDefaultFlagTypes`: table over the four types asserting exact IDs and points: lab and oscp give `local` 10 and `proof` 10; osai gives `ai_vector` 15, `trad_vector` 10, `proof` 5; custom gives an empty slice.
-`TestNewIDIsUniqueAndOpaque`: 1000 calls, all distinct, none empty.
-`TestHostJSONFieldOrder`: marshal a `Host` with `MarshalIndent` and assert the first key is `"id"` and `"accessPaths"` precedes `"services"`, which precedes `"flags"`.
+- `TestDefaultFlagTypes`: table over the four types asserting exact IDs and points: lab and oscp give `local` 10 and `proof` 10; osai gives `ai_vector` 15, `trad_vector` 10, `proof` 5; custom gives an empty slice.
+
+- `TestNewIDIsUniqueAndOpaque`: 1000 calls, all distinct, none empty.
+
+- `TestHostJSONFieldOrder`: marshal a `Host` with `MarshalIndent` and assert the first key is `"id"` and `"accessPaths"` precedes `"services"`, which precedes `"flags"`.
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `go test ./internal/model/`
-Expected: compile error, package does not exist.
+- Run: `go test ./internal/model/`
+
+- Expected: compile error, package does not exist.
 
 - [ ] **Step 3: Implement the types and functions listed in Interfaces**
 
 - [ ] **Step 4: Run tests**
 
-Run: `go test ./internal/model/`
-Expected: PASS.
+- Run: `go test ./internal/model/`
+
+- Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -188,10 +199,12 @@ git commit -s -m "feat: add domain model types and default flag sets"
 ### Task 3: Atomic write and parse errors
 
 **Files:**
+
 - Create: `internal/store/atomic.go`, `internal/store/parse.go`
 - Test: `internal/store/atomic_test.go`, `internal/store/parse_test.go`
 
 **Interfaces:**
+
 - Produces:
 
 ```go
@@ -203,16 +216,21 @@ func decodeJSON(path string, data []byte, v any) error // wraps *json.SyntaxErro
 
 - [ ] **Step 1: Write failing tests**
 
-`TestWriteAtomicReplacesContent`: write, read back, equal.
-`TestWriteAtomicLeavesNoTempOnSuccess`: directory contains only the target file.
-`TestWriteAtomicUnwritableDirKeepsOriginal`: make the directory read-only, write new content, assert error returned and original bytes unchanged.
-`TestDecodeJSONReportsLineAndCol`: data `"{\n  \"ip\": 1,\n  bad\n}"` decoded into a struct gives a `*ParseError` with `Line == 3`.
-`TestDecodeJSONTypeMismatch`: `{"port":"eighty"}` into a struct with `Port int` gives a `*ParseError` with a nonzero line.
+- `TestWriteAtomicReplacesContent`: write, read back, equal.
+
+- `TestWriteAtomicLeavesNoTempOnSuccess`: directory contains only the target file.
+
+- `TestWriteAtomicUnwritableDirKeepsOriginal`: make the directory read-only, write new content, assert error returned and original bytes unchanged.
+
+- `TestDecodeJSONReportsLineAndCol`: data `"{\n  \"ip\": 1,\n  bad\n}"` decoded into a struct gives a `*ParseError` with `Line == 3`.
+
+- `TestDecodeJSONTypeMismatch`: `{"port":"eighty"}` into a struct with `Port int` gives a `*ParseError` with a nonzero line.
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `go test ./internal/store/`
-Expected: FAIL, undefined symbols.
+- Run: `go test ./internal/store/`
+
+- Expected: FAIL, undefined symbols.
 
 - [ ] **Step 3: Implement**
 
@@ -220,7 +238,7 @@ Line and column from offset: count newlines in `data[:offset]`, column is offset
 
 - [ ] **Step 4: Run tests**
 
-Expected: PASS.
+- Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -234,10 +252,12 @@ git commit -s -m "feat: atomic file writes and JSON parse errors with position"
 ### Task 4: Engagement store with hash-checked mutations
 
 **Files:**
+
 - Create: `internal/store/store.go`, `internal/store/layout.go`, `internal/store/notes.go`
 - Test: `internal/store/store_test.go`, `internal/store/testdata/pg-sample/` (an engagement folder matching spec section 4 with one host `10.10.10.5`)
 
 **Interfaces:**
+
 - Consumes: Task 2 types, Task 3 `WriteAtomic` and `decodeJSON`.
 - Produces:
 
@@ -263,23 +283,35 @@ Mutation algorithm, every `Mutate*`: lock; read file bytes; if SHA-256 differs f
 
 - [ ] **Step 1: Write failing tests**
 
-`TestOpenLoadsFixture`: `Open(testdata/pg-sample)` gives one host with IP `10.10.10.5`, one service on port 80, flag types from the fixture.
-`TestOpenMissingFilesIsFine`: a dir containing only `engagement.json` opens with zero hosts and empty creds.
-`TestMutateHostRoundTrip`: set status to `foothold`, reopen from disk, status persisted and JSON indented with two spaces.
-`TestMutateHostAppliesOnTopOfExternalEdit`: after `Open`, overwrite `host.json` on disk adding tag `external`; then `MutateHost` sets hostname `app`. Reopen: both tag `external` and hostname `app` present.
-`TestMutateCorruptFileRefusesToWrite`: write `{` to `creds.json`; `MutateCreds` returns a `*ParseError`; file bytes still `{`.
-`TestHostIPMismatchIsParseError`: folder `hosts/10.0.0.9/host.json` with `"ip": "10.0.0.8"`; `Open` returns an error mentioning both values and the path.
-`TestWriteNotesConflict`: `ReadNotes` returns hash h1; edit `notes.md` externally; `ReadNotes` again returns h2 (this models the UI refetch); `WriteNotes(ip, text, h1)` returns an error wrapping `ErrConflict` and the file keeps the external text; `WriteNotes(ip, text, h2)` succeeds.
-`TestHostPathRejectsTraversal`: `../x`, `a/b`, `/etc`, and `10.0.0.1/..` each make `AddHost` and `SaveImport` return an error and create nothing under the engagement dir.
-`TestReloadKeepsLastGoodOnParseError`: write `{` to `host.json`; `Reload` returns a `*ParseError` and `Engagement()` still returns the previous host.
-`TestAddHostCreatesFolder`: `hosts/10.0.0.2/host.json` exists after `AddHost`; second `AddHost` with same IP errors.
-`TestSaveImportNamesFile`: returned path matches `^hosts/10\.10\.10\.5/imports/nmap-\d{8}-\d{6}\.xml$` and bytes equal input.
-`TestReloadReportsChangedFiles`: touch `host.json` with new content and a later mtime; `Reload` returns `["hosts/10.10.10.5/host.json"]` and `Engagement()` reflects the change.
+- `TestOpenLoadsFixture`: `Open(testdata/pg-sample)` gives one host with IP `10.10.10.5`, one service on port 80, flag types from the fixture.
+
+- `TestOpenMissingFilesIsFine`: a dir containing only `engagement.json` opens with zero hosts and empty creds.
+
+- `TestMutateHostRoundTrip`: set status to `foothold`, reopen from disk, status persisted and JSON indented with two spaces.
+
+- `TestMutateHostAppliesOnTopOfExternalEdit`: after `Open`, overwrite `host.json` on disk adding tag `external`; then `MutateHost` sets hostname `app`. Reopen: both tag `external` and hostname `app` present.
+
+- `TestMutateCorruptFileRefusesToWrite`: write `{` to `creds.json`; `MutateCreds` returns a `*ParseError`; file bytes still `{`.
+
+- `TestHostIPMismatchIsParseError`: folder `hosts/10.0.0.9/host.json` with `"ip": "10.0.0.8"`; `Open` returns an error mentioning both values and the path.
+
+- `TestWriteNotesConflict`: `ReadNotes` returns hash h1; edit `notes.md` externally; `ReadNotes` again returns h2 (this models the UI refetch); `WriteNotes(ip, text, h1)` returns an error wrapping `ErrConflict` and the file keeps the external text; `WriteNotes(ip, text, h2)` succeeds.
+
+- `TestHostPathRejectsTraversal`: `../x`, `a/b`, `/etc`, and `10.0.0.1/..` each make `AddHost` and `SaveImport` return an error and create nothing under the engagement dir.
+
+- `TestReloadKeepsLastGoodOnParseError`: write `{` to `host.json`; `Reload` returns a `*ParseError` and `Engagement()` still returns the previous host.
+
+- `TestAddHostCreatesFolder`: `hosts/10.0.0.2/host.json` exists after `AddHost`; second `AddHost` with same IP errors.
+
+- `TestSaveImportNamesFile`: returned path matches `^hosts/10\.10\.10\.5/imports/nmap-\d{8}-\d{6}\.xml$` and bytes equal input.
+
+- `TestReloadReportsChangedFiles`: touch `host.json` with new content and a later mtime; `Reload` returns `["hosts/10.10.10.5/host.json"]` and `Engagement()` reflects the change.
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `go test ./internal/store/`
-Expected: FAIL.
+- Run: `go test ./internal/store/`
+
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
@@ -287,7 +319,7 @@ Extension for `SaveImport`: `xml` if the raw bytes start with `<`, else `json` i
 
 - [ ] **Step 4: Run tests**
 
-Expected: PASS. Also run `go test -race ./internal/store/`.
+- Expected: PASS. Also run `go test -race ./internal/store/`.
 
 - [ ] **Step 5: Commit**
 
@@ -301,10 +333,12 @@ git commit -s -m "feat: engagement store with hash-checked mutations and notes c
 ### Task 5: Engagement listing, creation, and the poller
 
 **Files:**
+
 - Create: `internal/store/root.go`, `internal/store/poll.go`
 - Test: `internal/store/root_test.go`, `internal/store/poll_test.go`
 
 **Interfaces:**
+
 - Consumes: Task 4 `Store`, Task 2 `DefaultFlagTypes`.
 - Produces:
 
@@ -320,16 +354,21 @@ func (s *Store) Poll(ctx context.Context, every time.Duration, onChange func(cha
 
 - [ ] **Step 1: Write failing tests**
 
-`TestRootDirHonoursEnv`: with `REDTRACKS_HOME=/tmp/x`, returns `/tmp/x`.
-`TestCreateEngagementWritesLayout`: returned dir is `root/engagements/<slug>`, files exist, `engagement.json` has `osai` flag types with points 15, 10, 5 and the given domain.
-`TestCreateEngagementRejectsBadNames`: `""`, `"../x"`, `"a/b"` each return an error and create nothing.
-`TestListEngagementsSkipsNonEngagementDirs`: a stray dir without `engagement.json` is ignored.
-`TestPollCallsOnChange`: start `Poll` at 20ms, modify `host.json`, assert `onChange` receives the relative path within 500ms; cancel ctx stops it.
-`TestPollReportsParseErrors`: write `{` to `host.json`; `onError` receives a `*ParseError` within 500ms and `onChange` is not called for that file.
+- `TestRootDirHonoursEnv`: with `REDTRACKS_HOME=/tmp/x`, returns `/tmp/x`.
+
+- `TestCreateEngagementWritesLayout`: returned dir is `root/engagements/<slug>`, files exist, `engagement.json` has `osai` flag types with points 15, 10, 5 and the given domain.
+
+- `TestCreateEngagementRejectsBadNames`: `""`, `"../x"`, `"a/b"` each return an error and create nothing.
+
+- `TestListEngagementsSkipsNonEngagementDirs`: a stray dir without `engagement.json` is ignored.
+
+- `TestPollCallsOnChange`: start `Poll` at 20ms, modify `host.json`, assert `onChange` receives the relative path within 500ms; cancel ctx stops it.
+
+- `TestPollReportsParseErrors`: write `{` to `host.json`; `onError` receives a `*ParseError` within 500ms and `onChange` is not called for that file.
 
 - [ ] **Step 2: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
@@ -337,8 +376,9 @@ Expected: FAIL.
 
 - [ ] **Step 4: Run tests**
 
-Run: `go test -race ./internal/store/`
-Expected: PASS.
+- Run: `go test -race ./internal/store/`
+
+- Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -352,11 +392,13 @@ git commit -s -m "feat: engagement root listing, creation, and mtime poller"
 ### Task 6: Checklist definitions, matching, and the shipped sample set
 
 **Files:**
+
 - Create: `internal/checklist/checklist.go`, `internal/checklist/install.go`
 - Create: `checklists/embed.go`, `checklists/_readme.md`, and ten definitions: `checklists/http.json`, `smb.json`, `ldap.json`, `kerberos.json`, `ssh.json`, `mcp-server.json`, `llm-chat.json`, `rag-api.json`, `linux-privesc.json`, `windows-privesc.json`
 - Test: `internal/checklist/checklist_test.go`, `internal/checklist/testdata/`
 
 **Interfaces:**
+
 - Consumes: Task 2 `model.Service`, `model.Host`, `model.ChecklistState`.
 - Produces:
 
@@ -379,21 +421,31 @@ func InstallDefaults(src fs.FS, dst string) (installed bool, err error) // no-op
 
 - [ ] **Step 1: Write failing tests**
 
-`TestLoadDefinitionsReadsAll`: testdata with two files gives two definitions with `File` set.
-`TestLoadDefinitionsDuplicateItemID`: two files sharing `http.robots`; error message contains both file names.
-`TestForServiceMatchesByType`: `https` matches the http definition; `mcp-server` matches only that one.
-`TestForHostMatchesByOS`: host `OS: "linux"` gets `linux-privesc` and not `windows-privesc`.
-`TestMergeDefaultsToTodo`: definition with three items and state for one gives three views, two `todo`.
-`TestMergeIgnoresOrphanState`: state has an ID not in the definition; output length equals definition length.
-`TestSubstitute`: `curl http://$T/$D` with `10.0.0.1`, `corp.local` gives `curl http://10.0.0.1/corp.local`.
-`TestSubstituteRejectsShellMetacharacters`: domain `corp.local;curl x|sh`, a domain containing a newline, and IP `10.0.0.1;id` each return an error.
-`TestWatchReloadsOnChange`: start `Watch` at 20ms over a temp dir with one definition; add a second file; `onChange` receives two definitions within 500ms; then write `{` to one file; `onError` fires and the last `onChange` value is still two definitions.
-`TestInstallDefaultsOnlyOnce`: first call installs ten files and `_readme.md`; modify one; second call returns `false` and leaves the modification.
-`TestShippedSetLoads`: `LoadDefinitions` over the embedded set (copied to a temp dir) gives exactly ten definitions, each with 5 to 10 items, item IDs prefixed `<defID>.`.
+- `TestLoadDefinitionsReadsAll`: testdata with two files gives two definitions with `File` set.
+
+- `TestLoadDefinitionsDuplicateItemID`: two files sharing `http.robots`; error message contains both file names.
+
+- `TestForServiceMatchesByType`: `https` matches the http definition; `mcp-server` matches only that one.
+
+- `TestForHostMatchesByOS`: host `OS: "linux"` gets `linux-privesc` and not `windows-privesc`.
+
+- `TestMergeDefaultsToTodo`: definition with three items and state for one gives three views, two `todo`.
+
+- `TestMergeIgnoresOrphanState`: state has an ID not in the definition; output length equals definition length.
+
+- `TestSubstitute`: `curl http://$T/$D` with `10.0.0.1`, `corp.local` gives `curl http://10.0.0.1/corp.local`.
+
+- `TestSubstituteRejectsShellMetacharacters`: domain `corp.local;curl x|sh`, a domain containing a newline, and IP `10.0.0.1;id` each return an error.
+
+- `TestWatchReloadsOnChange`: start `Watch` at 20ms over a temp dir with one definition; add a second file; `onChange` receives two definitions within 500ms; then write `{` to one file; `onError` fires and the last `onChange` value is still two definitions.
+
+- `TestInstallDefaultsOnlyOnce`: first call installs ten files and `_readme.md`; modify one; second call returns `false` and leaves the modification.
+
+- `TestShippedSetLoads`: `LoadDefinitions` over the embedded set (copied to a temp dir) gives exactly ten definitions, each with 5 to 10 items, item IDs prefixed `<defID>.`.
 
 - [ ] **Step 2: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement the package**
 
@@ -403,8 +455,9 @@ Format per spec section 5. Match rules: `http` matches `http`, `https`, `http-pr
 
 - [ ] **Step 5: Run tests**
 
-Run: `go test ./internal/checklist/ ./checklists/`
-Expected: PASS.
+- Run: `go test ./internal/checklist/ ./checklists/`
+
+- Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -418,10 +471,12 @@ git commit -s -m "feat: checklist definitions, matching, and shipped sample set"
 ### Task 7: Importer contract, detection, and nmap
 
 **Files:**
+
 - Create: `internal/importers/result.go`, `internal/importers/detect.go`, `internal/importers/parse.go`, `internal/importers/nmap.go`
 - Test: `internal/importers/detect_test.go`, `internal/importers/nmap_test.go`, `internal/importers/testdata/nmap-localhost.xml`, `internal/importers/testdata/nmap-subnet-down.xml`, `internal/importers/testdata/garbage.bin`
 
 **Interfaces:**
+
 - Produces:
 
 ```go
@@ -443,19 +498,21 @@ Tool names, exactly: `nmap`, `masscan`, `ffuf`, `feroxbuster`, `gobuster`, `nikt
 
 - [ ] **Step 1: Capture the real nmap fixture**
 
-Run: `nmap -sV -p 22,80,443,631 -oX internal/importers/testdata/nmap-localhost.xml 127.0.0.1`
-Then hand-write `nmap-subnet-down.xml`: a minimal `<nmaprun>` with three `<host>` entries: one `status state="up"` with one open port and an `<osmatch name="Linux 5.4">`, one `status state="down"` with no ports, and one `status state="up"` whose address is `addr="../../x"`.
+- Run: `nmap -sV -p 22,80,443,631 -oX internal/importers/testdata/nmap-localhost.xml 127.0.0.1` Then hand-write `nmap-subnet-down.xml`: a minimal `<nmaprun>` with three `<host>` entries: one `status state="up"` with one open port and an `<osmatch name="Linux 5.4">`, one `status state="down"` with no ports, and one `status state="up"` whose address is `addr="../../x"`.
 
 - [ ] **Step 2: Write failing tests**
 
-`TestDetectAllFixtures`: table over every fixture file in testdata mapping to its tool name (this table grows in Tasks 8 and 9); `garbage.bin` returns an error wrapping `ErrUnknownFormat` whose message contains `nmap`.
-`TestParseNmapLocalhost`: one host, IP `127.0.0.1`, services non-empty, every service has `Protocol == "tcp"` and a nonzero port; any service with product set also has a type.
-`TestParseNmapSkipsDownHosts`: exactly one host returned from `nmap-subnet-down.xml`, and `Dropped == 1` for the traversal address.
-`TestParseNmapOSGuess`: the up host in `nmap-subnet-down.xml` has `OS == "linux"`; the localhost fixture, which has no `<osmatch>`, gives an empty `OS`.
+- `TestDetectAllFixtures`: table over every fixture file in testdata mapping to its tool name (this table grows in Tasks 8 and 9); `garbage.bin` returns an error wrapping `ErrUnknownFormat` whose message contains `nmap`.
+
+- `TestParseNmapLocalhost`: one host, IP `127.0.0.1`, services non-empty, every service has `Protocol == "tcp"` and a nonzero port; any service with product set also has a type.
+
+- `TestParseNmapSkipsDownHosts`: exactly one host returned from `nmap-subnet-down.xml`, and `Dropped == 1` for the traversal address.
+
+- `TestParseNmapOSGuess`: the up host in `nmap-subnet-down.xml` has `OS == "linux"`; the localhost fixture, which has no `<osmatch>`, gives an empty `OS`.
 
 - [ ] **Step 3: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 4: Implement**
 
@@ -463,7 +520,7 @@ nmap via `encoding/xml` with structs for `nmaprun > host > (status, address, hos
 
 - [ ] **Step 5: Run tests**
 
-Expected: PASS.
+- Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -477,10 +534,12 @@ git commit -s -m "feat: importer contract, format detection, and nmap XML parser
 ### Task 8: Port and web importers: masscan, gobuster, ffuf, feroxbuster
 
 **Files:**
+
 - Create: `internal/importers/masscan.go`, `gobuster.go`, `ffuf.go`, `feroxbuster.go`
 - Test: `internal/importers/web_test.go`, fixtures `testdata/masscan.json`, `testdata/gobuster-dir.txt`, `testdata/ffuf.json`, `testdata/feroxbuster.jsonl`
 
 **Interfaces:**
+
 - Consumes: Task 7 types and `parsers` map.
 - Produces: four registered parsers. Web parsers set `HostResult.URL` to the scheme, host, and port of the scanned base URL and leave `IP` empty unless the URL host is an IP literal. Gobuster is the exception: its text output carries no base URL, so its results have neither `IP` nor `URL` and always resolve through the operator picker in Task 10.
 
@@ -488,21 +547,23 @@ Fixtures are hand-written from each tool's documented output and carry a first-l
 
 - [ ] **Step 1: Write fixtures and failing tests**
 
-`TestParseMasscan`: two IPs, ports as given, `Type == ""`.
-`TestParseGobuster`: three paths with status and size; lines not matching the pattern (banner lines) ignored; `URL` is empty because gobuster text carries no base URL, and the test asserts that.
-`TestParseFfuf`: `URL` equals the config url with `FUZZ` stripped; paths are `/` plus the `FUZZ` input; status and length mapped.
-`TestParseFeroxbuster`: only `type == "response"` lines counted; `URL` is the scheme, host, and port of the first response (the fixture uses port 8080 so the port is asserted); path is the URL path.
-Extend `TestDetectAllFixtures` with the four new fixtures.
+- `TestParseMasscan`: two IPs, ports as given, `Type == ""`.
+
+- `TestParseGobuster`: three paths with status and size; lines not matching the pattern (banner lines) ignored; `URL` is empty because gobuster text carries no base URL, and the test asserts that.
+
+- `TestParseFfuf`: `URL` equals the config url with `FUZZ` stripped; paths are `/` plus the `FUZZ` input; status and length mapped.
+
+- `TestParseFeroxbuster`: only `type == "response"` lines counted; `URL` is the scheme, host, and port of the first response (the fixture uses port 8080 so the port is asserted); path is the URL path. Extend `TestDetectAllFixtures` with the four new fixtures.
 
 - [ ] **Step 2: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement the four parsers and register them in `parsers`**
 
 - [ ] **Step 4: Run tests**
 
-Expected: PASS.
+- Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -516,33 +577,40 @@ git commit -s -m "feat: masscan, gobuster, ffuf, and feroxbuster importers"
 ### Task 9: Vulnerability and SMB importers: nikto, nuclei, enum4linux-ng, netexec
 
 **Files:**
+
 - Create: `internal/importers/nikto.go`, `nuclei.go`, `enum4linux.go`, `netexec.go`
 - Test: `internal/importers/vuln_test.go`, `internal/importers/smb_test.go`, fixtures `testdata/nikto.json`, `testdata/nuclei.jsonl`, `testdata/enum4linux-ng.json`, `testdata/netexec-smb.txt`
 
 **Interfaces:**
+
 - Consumes: Task 7 types.
 - Produces: four registered parsers. Findings carry `Port` so merge can attach them to a service. Severity for nikto is `info`. Severity for nuclei is the template `info.severity` value lowercased. The enum4linux-ng and netexec parsers drop a domain value containing whitespace or control characters and leave `Domain` empty.
 
-Fixture shapes: nikto JSON `{"host","ip","port","vulnerabilities":[{"id","method","url","msg"}]}`; nuclei JSONL `{"template-id","info":{"name","severity"},"host","matched-at","port"}`; enum4linux-ng JSON with top-level `target.host`, `os_info.os`, `users` as a map of RID to `{"username"}`, `shares` as a map of name to `{"access":{"mapping","listing"}}`, `domain`; netexec text lines `SMB  10.10.10.5  445  DC01  [*] Windows Server 2019 Build 17763 x64 (name:DC01) (domain:corp.local) (signing:True) (SMBv1:False)` plus `[+] corp.local\user:pass` lines and share listing lines `SHARE  READ,WRITE  comment`.
+The netexec parser strips ANSI escape sequences (`\x1b[...m`) before matching lines. Fixture shapes: nikto JSON `{"host","ip","port","vulnerabilities":[{"id","method","url","msg"}]}`; nuclei JSONL `{"template-id","info":{"name","severity"},"host","matched-at","port"}`; enum4linux-ng JSON with top-level `target.host`, `os_info.os`, `users` as a map of RID to `{"username"}`, `shares` as a map of name to `{"access":{"mapping","listing"}}`, `domain`; netexec text lines `SMB  10.10.10.5  445  DC01  [*] Windows Server 2019 Build 17763 x64 (name:DC01) (domain:corp.local) (signing:True) (SMBv1:False)` plus `[+] corp.local\user:pass` lines and share listing lines `SHARE  READ,WRITE  comment`.
 
 - [ ] **Step 1: Write fixtures and failing tests**
 
-`TestParseNikto`: one host with `IP` from the `ip` field, findings count equals vulnerabilities count, each `Port == 80`, `Title == msg`, `Evidence == url`.
-`TestParseNuclei`: findings grouped by host, severity lowercased, `Title == info.name`, `Evidence == matched-at`.
-`TestParseEnum4linux`: users from the map, shares with `Access` formatted `mapping/listing`, `OS` lowercased family, `Hostname` from target.
-`TestParseNetexec`: `Hostname == "DC01"`, `OS` contains `windows`, users from `[+]` lines with `Domain` split off, shares with access.
-Extend `TestDetectAllFixtures`.
+- `TestParseNikto`: one host with `IP` from the `ip` field, findings count equals vulnerabilities count, each `Port == 80`, `Title == msg`, `Evidence == url`.
+
+- `TestParseNuclei`: findings grouped by host, severity lowercased, `Title == info.name`, `Evidence == matched-at`.
+
+- `TestParseEnum4linux`: users from the map, shares with `Access` formatted `mapping/listing`, `OS` lowercased family, `Hostname` from target.
+
+- `TestParseNetexec`: `Hostname == "DC01"`, `OS` contains `windows`, users from `[+]` lines with `Domain` split off, shares with access.
+
+- `TestParseNetexecStripsANSI`: the same fixture with every line wrapped in `\x1b[1;32m` and `\x1b[0m` parses to an identical result. Extend `TestDetectAllFixtures`.
 
 - [ ] **Step 2: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement and register**
 
 - [ ] **Step 4: Run tests**
 
-Run: `go test ./internal/importers/`
-Expected: PASS, and `TestDetectAllFixtures` covers nine tools plus garbage.
+- Run: `go test ./internal/importers/`
+
+- Expected: PASS, and `TestDetectAllFixtures` covers nine tools plus garbage.
 
 - [ ] **Step 5: Commit**
 
@@ -556,10 +624,12 @@ git commit -s -m "feat: nikto, nuclei, enum4linux-ng, and netexec importers"
 ### Task 10: Import preview and merge
 
 **Files:**
+
 - Create: `internal/importers/merge.go`
 - Test: `internal/importers/merge_test.go`
 
 **Interfaces:**
+
 - Consumes: Task 4 `Store`, Task 7 `Result`.
 - Produces:
 
@@ -578,19 +648,28 @@ Resolution: a `HostResult` with `IP` resolves directly. One with only `URL` reso
 - [ ] **Step 1: Write failing tests**
 
 Use the `pg-sample` fixture engagement from Task 4 (copy to temp dir per test).
-`TestPreviewNewHost`: nmap result with an unknown IP gives a `host` row with `new` and service rows with `new`.
-`TestPreviewFillsEmptyFields`: existing service port 80 has empty `Version`; result supplies one; row badge `fills`. Existing `Type` is `http` and result says `http-alt`; after `Apply`, type is still `http`.
-`TestPreviewDuplicateWebPath`: path already present with same status gives `duplicate`.
-`TestResolveURLByHostname`: result URL `http://nibbles/` resolves to `10.10.10.5` because the host's hostname is `nibbles`.
-`TestUnresolvedWritesNothing`: result URL `http://unknown.local/`; `Preview.Unresolved` has one entry; `Apply` with empty overrides leaves every file's bytes unchanged and creates no `imports/` file.
-`TestOverrideResolves`: same result with `overrides["unknown.local"] = "10.10.10.5"` attaches paths to the port 80 service.
-`TestGobusterResolvesByOverrideWithPort`: a gobuster result with `overrides["gobuster"] = "10.10.10.5:8080"` creates or fills the port 8080 service; with no override it is `Unresolved` and `Apply` writes nothing.
-`TestApplyDedupesFindingsAndUsers`: applying the same nuclei and enum4linux results twice yields the same counts as once.
-`TestApplySavesRaw`: after apply, one file exists under `hosts/10.10.10.5/imports/`.
+
+- `TestPreviewNewHost`: nmap result with an unknown IP gives a `host` row with `new` and service rows with `new`.
+
+- `TestPreviewFillsEmptyFields`: existing service port 80 has empty `Version`; result supplies one; row badge `fills`. Existing `Type` is `http` and result says `http-alt`; after `Apply`, type is still `http`.
+
+- `TestPreviewDuplicateWebPath`: path already present with same status gives `duplicate`.
+
+- `TestResolveURLByHostname`: result URL `http://nibbles/` resolves to `10.10.10.5` because the host's hostname is `nibbles`.
+
+- `TestUnresolvedWritesNothing`: result URL `http://unknown.local/`; `Preview.Unresolved` has one entry; `Apply` with empty overrides leaves every file's bytes unchanged and creates no `imports/` file.
+
+- `TestOverrideResolves`: same result with `overrides["unknown.local"] = "10.10.10.5"` attaches paths to the port 80 service.
+
+- `TestGobusterResolvesByOverrideWithPort`: a gobuster result with `overrides["gobuster"] = "10.10.10.5:8080"` creates or fills the port 8080 service; with no override it is `Unresolved` and `Apply` writes nothing.
+
+- `TestApplyDedupesFindingsAndUsers`: applying the same nuclei and enum4linux results twice yields the same counts as once.
+
+- `TestApplySavesRaw`: after apply, one file exists under `hosts/10.10.10.5/imports/`.
 
 - [ ] **Step 2: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
@@ -598,8 +677,9 @@ Expected: FAIL.
 
 - [ ] **Step 4: Run tests**
 
-Run: `go test -race ./internal/...`
-Expected: PASS.
+- Run: `go test -race ./internal/...`
+
+- Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -613,10 +693,12 @@ git commit -s -m "feat: import preview with badges, host resolution, and merge i
 ### Task 11: Progress and attack graph
 
 **Files:**
+
 - Create: `internal/progress/progress.go`, `internal/progress/graph.go`
 - Test: `internal/progress/progress_test.go`, `internal/progress/graph_test.go`, `internal/progress/testdata/graph.golden.mmd`
 
 **Interfaces:**
+
 - Consumes: Task 2 types, Task 6 `Definition`, `ForService`, `ForHost`, `Merge`.
 - Produces:
 
@@ -641,23 +723,30 @@ Graph rules are spec section 8. Node IDs are `h_` plus the IP with dots replaced
 - [ ] **Step 1: Write failing tests**
 
 Build engagements in code, not fixtures.
-`TestMissingFlags`: osai flag types, host has `ai_vector` captured; missing is `["trad_vector","proof"]`.
-`TestUntouchedServices`: service with matching definition and all todo is listed; a ticked one is not; a service type with no definition is never listed.
-`TestUntriedCreds`: cred found on host A, tried on B, works on nothing; host C lists it, A and B do not.
-`TestNoAccessPath`: true only when status is not `untouched` and `AccessPaths` is empty.
-`TestBoardOrder`: three hosts with 0, 10, 20 flag points over 25 come back in that order; tie broken by lower checklist ratio first.
-`TestAttackGraphGolden`: two chains into one DC plus an unconnected host; output equals `graph.golden.mmd` byte for byte (write the golden by hand first from the rules, then keep it).
-`TestAttackGraphEscapesHostileLabels`: hostname `a"];x["b` and access method `<img src=x>` produce output with no `"]` outside a quoted label and no `<`; the output still starts with `flowchart LR`.
+
+- `TestMissingFlags`: osai flag types, host has `ai_vector` captured; missing is `["trad_vector","proof"]`.
+
+- `TestUntouchedServices`: service with matching definition and all todo is listed; a ticked one is not; a service type with no definition is never listed.
+
+- `TestUntriedCreds`: cred found on host A, tried on B, works on nothing; host C lists it, A and B do not.
+
+- `TestNoAccessPath`: true only when status is not `untouched` and `AccessPaths` is empty.
+
+- `TestBoardOrder`: three hosts with 0, 10, 20 flag points over 25 come back in that order; tie broken by lower checklist ratio first.
+
+- `TestAttackGraphGolden`: two chains into one DC plus an unconnected host; output equals `graph.golden.mmd` byte for byte (write the golden by hand first from the rules, then keep it).
+
+- `TestAttackGraphEscapesHostileLabels`: hostname `a"];x["b` and access method `<img src=x>` produce output with no `"]` outside a quoted label and no `<`; the output still starts with `flowchart LR`.
 
 - [ ] **Step 2: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
 - [ ] **Step 4: Run tests**
 
-Expected: PASS.
+- Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -671,11 +760,13 @@ git commit -s -m "feat: what's-left summaries, board ordering, and Mermaid attac
 ### Task 12: Wails services, logging, and bindings
 
 **Files:**
+
 - Create: `internal/app/engagement_service.go`, `internal/app/host_service.go`, `internal/app/import_service.go`, `internal/app/checklist_service.go`, `internal/app/log.go`, `internal/app/app.go`
 - Modify: `main.go`
 - Test: `internal/app/log_test.go`, `internal/app/services_test.go`
 
 **Interfaces:**
+
 - Consumes: everything above.
 - Produces, exported methods become bindings. Errors returned from Go surface as rejected promises.
 
@@ -702,11 +793,19 @@ func (s *EngagementService) WriteNotes(ip, text, baseHash string) error  // on E
 func (s *EngagementService) AddCredential(c model.Credential) error
 func (s *EngagementService) UpdateCredential(c model.Credential) error   // replaces scalar fields only; WorksOn and TriedOn untouched
 func (s *EngagementService) MarkTried(credID, hostIP string, works bool) error
+func (s *EngagementService) DeleteCredential(id string) error
 func (s *EngagementService) AddUser(u model.User) error
+func (s *EngagementService) UpdateUser(u model.User) error
+func (s *EngagementService) DeleteUser(id string) error
 func (s *EngagementService) AddShare(sh model.Share) error
+func (s *EngagementService) UpdateShare(sh model.Share) error
+func (s *EngagementService) DeleteShare(id string) error
 func (s *EngagementService) AddLoot(l model.Loot) error
+func (s *EngagementService) UpdateLoot(l model.Loot) error
+func (s *EngagementService) DeleteLoot(id string) error
 func (s *EngagementService) AddFinding(f model.Finding) error
 func (s *EngagementService) UpdateFinding(f model.Finding) error
+func (s *EngagementService) DeleteFinding(id string) error
 
 // host_service.go
 type HostService struct{ app *App }
@@ -740,29 +839,37 @@ func (s *ChecklistService) Command(cmd, ip, domain string) (string, error) // Su
 func OpenLog(path string) (*slog.Logger, io.Closer, error)                // text handler, rotate to path+".1" when size exceeds 5<<20 before a write
 ```
 
-`main.go` builds `App` with `store.RootDir()`, registers the four services, sets `Server: application.ServerOptions{Host: "localhost"}`, window title RedTracks. `emit` wraps `app.Event.Emit`. Every service method logs errors at `Error` level with the method name before returning them. Credential secrets and flag values are never written to the log.
+`main.go` builds `App` with `store.RootDir()`, registers the four services, window title RedTracks. `Server: application.ServerOptions{Host: "localhost"}` is set so the server build works as the browser fallback on `localhost:8080`; it is localhost-only and unauthenticated by design for a single-operator machine. `emit` wraps `app.Event.Emit`. Every service method logs errors at `Error` level with the method name before returning them. Credential secrets and flag values are never written to the log.
 
 - [ ] **Step 1: Write failing tests**
 
-`TestOpenLogRotatesAt5MB`: write 5 MB plus one line; `redtracks.log.1` exists and `redtracks.log` is small.
-`TestSetItemPersists`: build `App` over a temp copy of `pg-sample`, call `SetItem` done, reopen store from disk, item status `done` with `UpdatedAt` set.
-`TestMarkTriedAppendsOnce`: two calls with same host leave one entry in `TriedOn`; `works == true` also appends to `WorksOn`.
-`TestImportPreviewThenApply`: `PreviewData` with the base64 of the nmap localhost fixture returns a token; `Apply(token, nil)` creates host `127.0.0.1`; a second `Apply` with the same token errors with "unknown token".
-`TestUpdateServiceKeepsChecklist`: take a copy of a service, `SetItem` done on it, then `UpdateService` with the stale copy; the item is still `done`.
-`TestOpenTwiceStopsFirstPoller`: open engagement A then B; modify a file in A; no `engagement:changed` is emitted within 200ms.
-`TestNewSurvivesBadDefinition`: a `checklists/` dir containing `{` still lets `New` return an `App`; `Definitions()` is empty and the error is logged.
-`TestNewInstallsDefaults`: temp root without `checklists/` gains ten definition files after `New`.
+- `TestOpenLogRotatesAt5MB`: write 5 MB plus one line; `redtracks.log.1` exists and `redtracks.log` is small.
+
+- `TestSetItemPersists`: build `App` over a temp copy of `pg-sample`, call `SetItem` done, reopen store from disk, item status `done` with `UpdatedAt` set.
+
+- `TestMarkTriedAppendsOnce`: two calls with same host leave one entry in `TriedOn`; `works == true` also appends to `WorksOn`.
+
+- `TestImportPreviewThenApply`: `PreviewData` with the base64 of the nmap localhost fixture returns a token; `Apply(token, nil)` creates host `127.0.0.1`; a second `Apply` with the same token errors with "unknown token".
+
+- `TestUpdateServiceKeepsChecklist`: take a copy of a service, `SetItem` done on it, then `UpdateService` with the stale copy; the item is still `done`.
+
+- `TestOpenTwiceStopsFirstPoller`: open engagement A then B; modify a file in A; no `engagement:changed` is emitted within 200ms.
+
+- `TestNewSurvivesBadDefinition`: a `checklists/` dir containing `{` still lets `New` return an `App`; `Definitions()` is empty and the error is logged.
+
+- `TestNewInstallsDefaults`: temp root without `checklists/` gains ten definition files after `New`.
 
 - [ ] **Step 2: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement services, log, and wire `main.go`**
 
 - [ ] **Step 4: Generate bindings and build**
 
-Run: `wails3 task generate:bindings && wails3 task build && wails3 task lint && wails3 task test`
-Expected: all exit 0; `frontend/bindings/github.com/unclesp1d3r/redtracks/internal/app/` contains `engagementservice.ts`, `hostservice.ts`, `importservice.ts`, `checklistservice.ts`, and `models.ts`.
+- Run: `wails3 task generate:bindings && wails3 task build && wails3 task lint && wails3 task test`
+
+- Expected: all exit 0; `frontend/bindings/github.com/unclesp1d3r/redtracks/internal/app/` contains `engagementservice.ts`, `hostservice.ts`, `importservice.ts`, `checklistservice.ts`, and `models.ts`.
 
 - [ ] **Step 5: Commit**
 
@@ -776,29 +883,34 @@ git commit -s -m "feat: Wails services, rotating log, and generated bindings"
 ### Task 13: Frontend shell, Engagements screen, Board with attack graph
 
 **Files:**
+
 - Create: `frontend/src/lib/api.ts`, `frontend/src/lib/query.ts`, `frontend/src/App.tsx` (replace), `frontend/src/components/AppShell.tsx`, `frontend/src/components/Mermaid.tsx`, `frontend/src/components/CommandPalette.tsx`, `frontend/src/components/QueryStates.tsx`, `frontend/src/components/RequireEngagement.tsx`, `frontend/src/features/engagements/EngagementsPage.tsx`, `frontend/src/features/engagements/CreateEngagementDialog.tsx`, `frontend/src/features/board/BoardPage.tsx`, `frontend/src/features/board/HostRow.tsx`, `frontend/src/features/board/AttackGraph.tsx`, `frontend/src/features/board/AddHostDialog.tsx`
 - Test: `frontend/src/components/Mermaid.test.tsx`, `frontend/vitest.config.ts`, `frontend/src/test/setup.ts`
 
 **Interfaces:**
+
 - Consumes: Task 12 bindings.
+
 - Produces:
+
   - `lib/api.ts` re-exports the four services and all model types from the bindings path so no feature file imports from `../bindings/...` directly.
   - `lib/query.ts` exports `queryClient` and query keys: `["engagements"]`, `["engagement"]`, `["summaries"]`, `["graph"]`, `["checklists", ip, serviceId]`, `["notes", ip]`, `["definitions"]`. It subscribes to the Wails event `engagement:changed` with `Events.On` from `@wailsio/runtime` and invalidates `engagement`, `summaries`, `graph`, `checklists`, and `definitions`. It does not invalidate `notes`; the notes editor owns its own refresh (Task 14). It also subscribes to `engagement:error` and stores the latest message in a small store that `AppShell` renders as a persistent `Alert` banner naming the file and line, cleared on the next `engagement:changed`.
   - Routes: `/` Engagements, `/board`, `/host/:ip`, `/tables`, `/import`, `/left`. Every route except `/` is wrapped in `RequireEngagement`, which calls `Current()` and redirects to `/` when it errors with no open engagement. The last-opened engagement is not remembered in slice one; reopening is one click on the Engagements list.
   - `Mermaid` calls `mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'dark' })` once per module, renders a given string with `mermaid.render`, sanitises the returned SVG with DOMPurify, inserts it into a container, and shows the raw text in a `pre` on render error.
-  - `CommandPalette` opens on `cmd+k`, lists hosts by IP and hostname and services as `ip:port type`, navigates to `/host/:ip` on select.
-  - `AppShell` is a left nav with Board, Tables, Import, and What's left plus the engagement name, a status line showing the root directory, the error banner, and the `Toaster`.
+  - `CommandPalette` opens on `cmd+k`, lists hosts by IP and hostname, services as `ip:port type`, a "Go to <screen>" entry per route, and "Add host"; selecting navigates or opens the dialog.
+  - `AppShell` is a persistent left nav with Board, Tables, Import, and What's left, a link back to Engagements, the engagement name, a status line showing the root directory, the error banner (store and checklist-definition errors both arrive as `engagement:error`), and the `Toaster`.
   - `queryClient` is built with a `MutationCache` `onError` that calls sonner's `toast.error(message, { duration: Infinity })` unless the mutation has `meta.silent`, and a `QueryCache` `onError` that logs only, because failed queries render through `QueryStates` below. `<Toaster />` is mounted in `AppShell`. This is the UI half of spec section 10.
   - `QueryStates` is the shared states rule for every page in Tasks 13 to 17: a shadcn `Skeleton` while pending, a one-line empty state with the page's primary action when the result is empty, and a full-pane error panel showing the error message (for parse errors `path:line:col: reason`) with a Retry button when the query fails.
 
 - [ ] **Step 1: Write failing test**
 
-`Mermaid.test.tsx`: renders with invalid input and asserts the `pre` fallback contains the input text (mock `mermaid.render` to reject).
+- `Mermaid.test.tsx`: renders with invalid input and asserts the `pre` fallback contains the input text (mock `mermaid.render` to reject).
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `cd frontend && pnpm vitest run`
-Expected: FAIL, component missing.
+- Run: `cd frontend && pnpm vitest run`
+
+- Expected: FAIL, component missing.
 
 - [ ] **Step 3: Implement shell, routing, query setup, Engagements, Board**
 
@@ -806,8 +918,9 @@ Board columns: IP and hostname, status badge, one chip per flag type (a check ic
 
 - [ ] **Step 4: Run tests and typecheck, then run the app**
 
-Run: `cd frontend && pnpm vitest run && pnpm tsc --noEmit` then `wails3 task dev`.
-Expected: tests pass; app opens on Engagements; creating `pg-test` of type `osai` navigates to an empty Board; `~/RedTracks/engagements/pg-test/engagement.json` exists.
+- Run: `cd frontend && pnpm vitest run && pnpm tsc --noEmit` then `wails3 task dev`.
+
+- Expected: tests pass; app opens on Engagements; creating `pg-test` of type `osai` navigates to an empty Board; `~/RedTracks/engagements/pg-test/engagement.json` exists.
 
 - [ ] **Step 5: Commit**
 
@@ -821,13 +934,18 @@ git commit -s -m "feat: frontend shell, engagements screen, and board with attac
 ### Task 14: Host screen
 
 **Files:**
+
 - Create: `frontend/src/features/host/HostPage.tsx`, `HostHeader.tsx`, `AccessPaths.tsx`, `FlagsBar.tsx`, `ServiceList.tsx`, `ServicePanel.tsx`, `Checklist.tsx`, `WebPathsTable.tsx`, `FindingsList.tsx`, `NotesEditor.tsx`, `AddServiceDialog.tsx`
 - Create: `frontend/src/components/MarkdownView.tsx`
 - Test: `frontend/src/features/host/Checklist.test.tsx`, `frontend/src/features/host/NotesEditor.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `HostService`, `EngagementService.ReadNotes` and `WriteNotes`, `ChecklistService.Command`, `Mermaid`.
+
 - Produces:
+
+  - Layout top to bottom: `HostHeader` with status and flags pinned, `AccessPaths`, a two-pane body with `ServiceList` on the left and `ServicePanel` (checklist, web paths, findings) on the right with host checklists in a tab beside Services, and `NotesEditor` in a collapsible lower region.
   - `Checklist` props: `{ views: ChecklistView[]; onSet(itemId, status, note): void; targetIp: string; domain: string }`. Row layout: checkbox, title, a status `Badge` for skipped and na (na rows struck through), and an expand toggle revealing the hint, the commands with copy buttons, and a note `Textarea` saved on blur via `onSet` with the current status. Space toggles `todo` to `done` and back on the focused row; the shortcut is bound on the row element and ignored when focus is inside an input, textarea, or button. A per-row menu sets `skipped` and `na`. Each copy button calls `ChecklistService.Command(cmd, targetIp, domain)` and shows the returned error inline if the domain or IP is rejected. `domain` is the part of the host's hostname after the first dot when the hostname contains a dot, otherwise `EngagementMeta.Domain`.
   - `HostHeader` has a status `Select` over the six statuses calling `SetStatus`, and editable hostname and OS fields calling `Update`.
   - `FlagsBar` renders one chip per engagement flag type; clicking opens a `Popover` with a value input, a Submitted checkbox, and Clear, calling `SetFlag`. Captured chips show a check icon and the label.
@@ -838,19 +956,21 @@ git commit -s -m "feat: frontend shell, engagements screen, and board with attac
 
 - [ ] **Step 1: Write failing test**
 
-`Checklist.test.tsx`: renders three items, presses space on the second, asserts `onSet` called with `(itemId, "done", "")`; presses again, asserts `"todo"`; focuses the note textarea and presses space, asserts `onSet` not called.
-`NotesEditor.test.tsx`: with a dirty buffer, a mocked `ReadNotes` returning new text leaves the textarea unchanged and shows the banner; with a clean buffer the textarea adopts the new text.
+- `Checklist.test.tsx`: renders three items, presses space on the second, asserts `onSet` called with `(itemId, "done", "")`; presses again, asserts `"todo"`; focuses the note textarea and presses space, asserts `onSet` not called.
+
+- `NotesEditor.test.tsx`: with a dirty buffer, a mocked `ReadNotes` returning new text leaves the textarea unchanged and shows the banner; with a clean buffer the textarea adopts the new text.
 
 - [ ] **Step 2: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
 - [ ] **Step 4: Run tests and the app**
 
-Run: `cd frontend && pnpm vitest run && pnpm tsc --noEmit` then `wails3 task dev`.
-Expected: adding service `80 http` to a host shows the http checklist; ticking an item updates `host.json` within two seconds; editing `notes.md` in another editor updates the preview after the next poll.
+- Run: `cd frontend && pnpm vitest run && pnpm tsc --noEmit` then `wails3 task dev`.
+
+- Expected: adding service `80 http` to a host shows the http checklist; ticking an item updates `host.json` within two seconds; editing `notes.md` in another editor updates the preview after the next poll.
 
 - [ ] **Step 5: Commit**
 
@@ -864,11 +984,14 @@ git commit -s -m "feat: host screen with services, checklists, access paths, fla
 ### Task 15: Tables screen
 
 **Files:**
+
 - Create: `frontend/src/features/tables/TablesPage.tsx`, `CredentialsTable.tsx`, `UsersTable.tsx`, `SharesTable.tsx`, `LootTable.tsx`, `FindingsTable.tsx`, `TriedOnChips.tsx`, `AddRowDialog.tsx`
 
 **Interfaces:**
+
 - Consumes: `EngagementService` add and update methods, `MarkTried`.
-- Produces: one tab per table. Credential rows show `worksOn` chips labelled "works" in green and `triedOn` chips labelled "tried" in grey, plus a host picker that calls `MarkTried` with a works toggle. Secrets render masked with a reveal toggle. Findings rows allow status change via a `Select`.
+
+- Produces: one tab per table. Every row opens `AddRowDialog` in edit mode and has a delete button with a confirm step calling the matching `Delete*` method. Dialog fields: credentials (username, secret, kind, domain, found-on host, notes), users (name, domain, host, notes), shares (host, name, access, notes), loot (host, label, path, notes), findings (host, service, title, severity, source, evidence, status). Credential rows show `worksOn` chips labelled "works" in green and `triedOn` chips labelled "tried" in grey, plus a host picker that calls `MarkTried` with a works toggle. Secrets render masked with a per-row reveal toggle that re-masks after ten seconds and a copy button. Findings rows allow status change via a `Select`.
 
 - [ ] **Step 1: Implement**
 
@@ -876,8 +999,9 @@ No unit test; this screen is forms over bindings. The Playwright path in Task 18
 
 - [ ] **Step 2: Typecheck and run**
 
-Run: `cd frontend && pnpm tsc --noEmit` then `wails3 task dev`.
-Expected: adding a credential writes `creds.json`; marking tried on a host updates `triedOn` in the file.
+- Run: `cd frontend && pnpm tsc --noEmit` then `wails3 task dev`.
+
+- Expected: adding a credential writes `creds.json`; marking tried on a host updates `triedOn` in the file.
 
 - [ ] **Step 3: Commit**
 
@@ -891,12 +1015,16 @@ git commit -s -m "feat: credentials, users, shares, loot, and findings tables"
 ### Task 16: Import screen
 
 **Files:**
+
 - Create: `frontend/src/features/import/ImportPage.tsx`, `DropZone.tsx`, `PreviewTable.tsx`, `ResolveHosts.tsx`
 - Test: `frontend/src/features/import/PreviewTable.test.tsx`, `frontend/src/features/import/encode.test.ts`
 
 **Interfaces:**
+
 - Consumes: `ImportService.PreviewData`, `ImportService.Apply`.
+
 - Produces:
+
   - `DropZone` accepts a dropped or picked file, rejects files over 20 MB with an inline message, reads the file with `FileReader.readAsDataURL`, strips the `data:...;base64,` prefix (helper `toBase64(file)` in `encode.ts`), and calls `PreviewData(name, base64)`. When `PreviewData` fails with an unknown-format error, the error text (which names the tools tried) shows inline and the zone stays ready for another file. The detected tool name shows above the preview.
   - `PreviewTable` props `{ rows: Row[] }`, groups by `HostIP`, renders a `Badge` per row coloured by badge value.
   - `ResolveHosts` lists `Unresolved` entries each with a `Select` of engagement hosts and, for entries with no URL, a port input; the chosen mapping becomes `overrides` with values `ip` or `ip:port`.
@@ -904,18 +1032,19 @@ git commit -s -m "feat: credentials, users, shares, loot, and findings tables"
 
 - [ ] **Step 1: Write failing test**
 
-`PreviewTable.test.tsx`: three rows across two hosts render two group headers and badges with text `new`, `fills`, `duplicate`.
-`encode.test.ts`: `toBase64` of a `File` containing bytes `[0, 255, 10]` resolves to `AP8K`.
+- `PreviewTable.test.tsx`: three rows across two hosts render two group headers and badges with text `new`, `fills`, `duplicate`.
+
+- `encode.test.ts`: `toBase64` of a `File` containing bytes `[0, 255, 10]` resolves to `AP8K`.
 
 - [ ] **Step 2: Run to verify failure**
 
-Expected: FAIL.
+- Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
 - [ ] **Step 4: Run tests and the app**
 
-Expected: dropping `internal/importers/testdata/nmap-localhost.xml` shows a preview; confirming creates host `127.0.0.1` and a file under its `imports/`.
+- Expected: dropping `internal/importers/testdata/nmap-localhost.xml` shows a preview; confirming creates host `127.0.0.1` and a file under its `imports/`.
 
 - [ ] **Step 5: Commit**
 
@@ -929,17 +1058,20 @@ git commit -s -m "feat: import screen with preview, badges, and host resolution"
 ### Task 17: What's left screen
 
 **Files:**
+
 - Create: `frontend/src/features/left/WhatsLeftPage.tsx`, `HostLeftCard.tsx`
 
 **Interfaces:**
+
 - Consumes: `EngagementService.Summaries`.
+
 - Produces: one card per host in board order with five sections from spec section 7; each item links to `/host/:ip`. Hosts with nothing left show a single line "Nothing left" and sort to the bottom.
 
 - [ ] **Step 1: Implement**
 
 - [ ] **Step 2: Typecheck and run**
 
-Expected: a host with an untouched service and a missing flag shows both; ticking all items on the Host screen removes the service from the list after the next refresh.
+- Expected: a host with an untouched service and a missing flag shows both; ticking all items on the Host screen removes the service from the list after the next refresh.
 
 - [ ] **Step 3: Commit**
 
@@ -953,36 +1085,39 @@ git commit -s -m "feat: what's-left screen"
 ### Task 18: End-to-end test against server build and release checklist
 
 **Files:**
+
 - Create: `frontend/playwright.config.ts`, `frontend/e2e/happy-path.spec.ts`
 - Modify: `Taskfile.yml` `e2e` task, `README.md`
 
 **Interfaces:**
+
 - Consumes: the server build, which listens on `localhost` and reads `WAILS_SERVER_PORT`.
 
 - [ ] **Step 1: Write the Playwright config and test**
 
-`playwright.config.ts`: `baseURL` from `E2E_BASE_URL` defaulting to `http://localhost:8080`, Chromium only, `webServer` runs `../bin/redtracks-server` with env `REDTRACKS_HOME` set to a fresh temp dir and `WAILS_SERVER_PORT=8080`, `reuseExistingServer: false`.
-`happy-path.spec.ts`, one test: create engagement `e2e` of type `lab`; go to Import; upload `../internal/importers/testdata/nmap-localhost.xml`; confirm; open host `127.0.0.1`; select the first service; press space on the first checklist item; go to Tables and add a credential with username `admin`, secret `Winter2026!`, kind `password`; then read `host.json` from the temp root with `fs` and assert one item has status `done`, and read `creds.json` and assert one credential with username `admin`.
+- `playwright.config.ts`: at module top level, `process.env.REDTRACKS_E2E_HOME ??= mkdtempSync(...)` so the main process and every worker share one path; `baseURL` from `E2E_BASE_URL` defaulting to `http://localhost:8080`, Chromium only, `webServer` runs `../bin/redtracks-server` with env `REDTRACKS_HOME: process.env.REDTRACKS_E2E_HOME` and `WAILS_SERVER_PORT=8080`, `reuseExistingServer: false`. The spec reads `process.env.REDTRACKS_E2E_HOME`. `happy-path.spec.ts`, one test: create engagement `e2e` of type `lab`; go to Import; upload `../internal/importers/testdata/nmap-localhost.xml`; confirm; open host `127.0.0.1`; select the first service; press space on the first checklist item; go to Tables and add a credential with username `admin`, secret `Winter2026!`, kind `password`; then read `host.json` from the temp root with `fs` and assert one item has status `done`, and read `creds.json` and assert one credential with username `admin`.
 
 - [ ] **Step 2: Update the `e2e` task**
 
 ```yaml
-  e2e:
-    deps: [build:server]
-    cmds:
-      - cd frontend && pnpm exec playwright install chromium
-      - cd frontend && pnpm exec playwright test
+e2e:
+  deps: [build:server]
+  cmds:
+    - cd frontend && pnpm exec playwright install chromium
+    - cd frontend && pnpm exec playwright test
 ```
 
 - [ ] **Step 3: Run**
 
-Run: `wails3 task e2e`
-Expected: 1 passed.
+- Run: `wails3 task e2e`
+
+- Expected: 1 passed.
 
 - [ ] **Step 4: Coverage and lint gate**
 
-Run: `go test -race -coverprofile=cover.out ./internal/... && go tool cover -func=cover.out | tail -1 && wails3 task lint`
-Expected: total coverage at or above 80%; lint clean. Add `cover.out` to `.gitignore`.
+- Run: `go test -race -coverprofile=cover.out ./internal/... && go tool cover -func=cover.out | tail -1 && wails3 task lint`
+
+- Expected: total coverage at or above 80%; lint clean. Add `cover.out` to `.gitignore`.
 
 - [ ] **Step 5: README**
 
