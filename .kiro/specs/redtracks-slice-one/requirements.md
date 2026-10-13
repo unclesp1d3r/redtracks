@@ -296,7 +296,7 @@ These requirements are derived from the approved design document (`design.md`) a
 
 #### Acceptance Criteria
 
-1. THE System SHALL pin Go to version 1.26 and Wails to version `v3.0.0-beta.28` in both `mise.toml` and `go.mod`.
+1. THE System SHALL pin Go to version 1.27 and Wails to version `v3.0.0-beta.28` in both `mise.toml` and `go.mod`.
 2. THE System SHALL declare bun as the frontend package manager in `mise.toml`.
 3. WHERE the Wails version is changed, THE System SHALL record that change in a commit that modifies no application feature code.
 

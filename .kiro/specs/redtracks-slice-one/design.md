@@ -1054,7 +1054,7 @@ Frontend: vitest smoke tests for the Import preview (`PreviewTable`), the checkl
 
 ## Dependencies
 
-- **Backend**: Go 1.26 (toolchain pinned in `mise.toml`), module `github.com/unclesp1d3r/redtracks`. Standard library first; the only runtime dependency is Wails `v3.0.0-beta.28`, pinned to one beta tag and bumped only in a dedicated commit, never mid-feature. Logging uses `log/slog`.
+- **Backend**: Go 1.27 (toolchain pinned in `mise.toml`), module `github.com/unclesp1d3r/redtracks`. Standard library first; the only runtime dependency is Wails `v3.0.0-beta.28`, pinned to one beta tag and bumped only in a dedicated commit, never mid-feature. Logging uses `log/slog`.
 - **Frontend**: React 18 + TypeScript, Vite 8, Tailwind CSS v4, shadcn/ui, TanStack Query, react-router, mermaid (strict security mode + DOMPurify), sonner, react-markdown + remark-gfm. Package manager is **bun** (per workspace steering; the implementation plan's mention of pnpm is superseded here).
 - **Toolchain**: [mise](https://mise.jdx.dev/) manages all tools (run through `mise exec -- <cmd>`); [Task](https://taskfile.dev/) (`wails3 task ...`) is the runner with `dev`, `build`, `package`, `test`, `lint`, `e2e`, and `common:generate:bindings` targets. Lint is `go vet`, `golangci-lint` (120-char lines, gofumpt), and frontend `tsc --noEmit`.
 - **Generated bindings**: TypeScript bindings to the Go services are generated into `frontend/bindings/` (gitignored) and must never be hand-edited — regenerate instead.
