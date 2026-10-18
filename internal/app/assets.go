@@ -3,32 +3,19 @@ package app
 import (
 	"errors"
 	"net/http"
-	"net/netip"
-	"path/filepath"
 	"strings"
 
 	"github.com/unclesp1d3r/redtracks/internal/evidence"
+	"github.com/unclesp1d3r/redtracks/internal/store"
 )
 
 const (
 	routeEvidence = "/evidence/"
 	routeInbox    = "/inbox/"
-	hostsDirName  = "hosts"
-	evidenceSub   = "evidence"
 	// Headers that keep a served evidence file inert in the webview.
 	cspSandbox   = "sandbox; default-src 'none'"
 	cacheControl = "private, max-age=0"
 )
-
-// hostEvidenceDirName mirrors the store's host directory rule (IPv6 ':'
-// becomes '_'); the store keeps it unexported, so it is repeated here.
-func hostEvidenceDirName(ip string) (string, error) {
-	addr, err := netip.ParseAddr(ip)
-	if err != nil || addr.Zone() != "" {
-		return "", errors.New("invalid host ip")
-	}
-	return strings.ReplaceAll(addr.String(), ":", "_"), nil
-}
 
 // EvidenceAssets returns the asset middleware that serves /evidence/<ip>/<file>
 // from the open engagement and /inbox/<file> from the inbox, and passes every
@@ -64,12 +51,11 @@ func serveEvidence(a *App, w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	host, err := hostEvidenceDirName(segs[0])
+	root, err := store.EvidenceDir(st.Engagement().Dir, segs[0])
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	root := filepath.Join(st.Engagement().Dir, hostsDirName, host, evidenceSub)
 	serveFile(a, w, r, root, segs[1:], 1)
 }
 

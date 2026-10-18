@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
@@ -151,6 +152,9 @@ func OpenRegular(path string) (*os.File, os.FileInfo, error) {
 		return nil, nil, refuse("%q is not an absolute path", path)
 	}
 	f, err := os.OpenFile(path, os.O_RDONLY|openFlags, 0)
+	if errors.Is(err, syscall.ELOOP) {
+		return nil, nil, refuse("%s is a symbolic link, not a regular file", path)
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("open %s: %w", path, err)
 	}
@@ -161,7 +165,22 @@ func OpenRegular(path string) (*os.File, os.FileInfo, error) {
 	}
 	if !info.Mode().IsRegular() {
 		_ = f.Close()
-		return nil, nil, refuse("%s is not a regular file", path)
+		return nil, nil, refuse("%s is a %s, not a regular file", path, describeMode(info.Mode()))
 	}
 	return f, info, nil
+}
+
+// describeMode names the kind of a non-regular file for refusal messages.
+func describeMode(m os.FileMode) string {
+	switch {
+	case m.IsDir():
+		return "directory"
+	case m&os.ModeNamedPipe != 0:
+		return "named pipe"
+	case m&os.ModeDevice != 0:
+		return "device"
+	case m&os.ModeSocket != 0:
+		return "socket"
+	}
+	return "special file"
 }

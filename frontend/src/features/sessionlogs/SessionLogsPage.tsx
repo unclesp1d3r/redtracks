@@ -5,19 +5,8 @@ import type { SessionLogSource } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { ImportControl } from "./ImportControl";
 import { LogViewer } from "./LogViewer";
+import { humanSize } from "@/lib/format";
 import { useSessionLogsQuery } from "./useSessionLog";
-
-const UNITS = ["B", "KB", "MB", "GB"];
-
-export function humanSize(bytes: number): string {
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < UNITS.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  return unit === 0 ? `${value} B` : `${value.toFixed(1)} ${UNITS[unit]}`;
-}
 
 function LogRow({ log, isSelected, onOpen }: { log: SessionLogSource; isSelected: boolean; onOpen: () => void }) {
   return (

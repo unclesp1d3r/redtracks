@@ -140,21 +140,19 @@ func ListInbox(dir string, ready []string) ([]InboxFile, error) {
 }
 
 func describe(dir, name string) (InboxFile, bool, error) {
-	path := filepath.Join(dir, name)
-	info, err := os.Lstat(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return InboxFile{}, false, nil
-	}
+	fh, info, err := OpenRegular(filepath.Join(dir, name))
 	if err != nil {
-		return InboxFile{}, false, fmt.Errorf("stat %s: %w", name, err)
+		var refused *RefusedError
+		if errors.Is(err, fs.ErrNotExist) || errors.As(err, &refused) {
+			return InboxFile{}, false, nil // gone, or not a regular file: never listed
+		}
+		return InboxFile{}, false, fmt.Errorf("inbox %s: %w", name, err)
 	}
-	if !info.Mode().IsRegular() {
-		return InboxFile{}, false, nil
-	}
+	defer func() { _ = fh.Close() }()
 	f := InboxFile{Name: name, Size: info.Size(), ModTime: info.ModTime()}
-	head, err := readHead(path)
+	head, err := io.ReadAll(io.LimitReader(fh, previewReadBytes))
 	if err != nil {
-		return InboxFile{}, false, err
+		return InboxFile{}, false, fmt.Errorf("read %s: %w", name, err)
 	}
 	if s, err := Sniff(head[:min(len(head), SniffLen)]); err == nil {
 		f.Kind = s.Kind
@@ -163,20 +161,6 @@ func describe(dir, name string) (InboxFile, bool, error) {
 		f.Preview = textPreview(head)
 	}
 	return f, true, nil
-}
-
-// readHead reads at most previewReadBytes from the start of a regular file.
-func readHead(path string) ([]byte, error) {
-	fh, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", path, err)
-	}
-	defer func() { _ = fh.Close() }()
-	head, err := io.ReadAll(io.LimitReader(fh, previewReadBytes))
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	return head, nil
 }
 
 // textPreview strips head and keeps the first previewLines lines, each cut to

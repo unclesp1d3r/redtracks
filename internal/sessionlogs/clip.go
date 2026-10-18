@@ -20,17 +20,8 @@ const (
 
 var errClipTooBig = errors.New("clip is larger than 20 MB; choose fewer lines")
 
-// Clip saves lines from..to (inclusive, 0-based) of src as a text evidence
-// item on the host at ip. The log on disk is never changed.
-func Clip(st *store.Store, ip string, src Source, from, to int) (model.EvidenceItem, error) {
-	l, err := Open(st.Engagement().Dir, src.ID)
-	if err != nil {
-		return model.EvidenceItem{}, err
-	}
-	return l.Clip(st, ip, src, from, to)
-}
-
-// Clip is Clip over an already opened (indexed) log.
+// Clip saves lines from..to (inclusive, 0-based) of the opened log as a text
+// evidence item on the host at ip. The log on disk is never changed.
 func (l *Log) Clip(st *store.Store, ip string, src Source, from, to int) (model.EvidenceItem, error) {
 	text, err := l.clipText(from, to)
 	if err != nil {

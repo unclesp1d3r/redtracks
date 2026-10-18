@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"syscall"
 	"time"
 
 	"github.com/unclesp1d3r/redtracks/internal/evidence"
@@ -189,21 +188,11 @@ func removeIgnoringMissing(path string) error {
 // as AddEvidenceFile does, with the file's mtime (never later than now) as the
 // capture time. The source is only read, never moved or changed.
 func (s *Store) ImportEvidenceFile(ip, path, caption string, links []model.EvidenceLink) (AddedEvidence, error) {
-	f, err := os.OpenFile(path, os.O_RDONLY|openFlags, 0)
-	if errors.Is(err, syscall.ELOOP) {
-		return AddedEvidence{}, fmt.Errorf("%s is a symbolic link; evidence must be a regular file", path)
-	}
+	f, info, err := evidence.OpenRegular(path)
 	if err != nil {
-		return AddedEvidence{}, fmt.Errorf("open %s: %w", path, err)
+		return AddedEvidence{}, err
 	}
 	defer func() { _ = f.Close() }()
-	info, err := f.Stat()
-	if err != nil {
-		return AddedEvidence{}, fmt.Errorf("stat %s: %w", path, err)
-	}
-	if !info.Mode().IsRegular() {
-		return AddedEvidence{}, fmt.Errorf("%s is a %s, not a regular file", path, describeMode(info.Mode()))
-	}
 	return s.AddEvidenceFile(ip, f, minTime(info.ModTime(), time.Now()), caption, links)
 }
 
@@ -212,18 +201,4 @@ func minTime(a, b time.Time) time.Time {
 		return b
 	}
 	return a
-}
-
-func describeMode(m os.FileMode) string {
-	switch {
-	case m.IsDir():
-		return "directory"
-	case m&os.ModeNamedPipe != 0:
-		return "named pipe"
-	case m&os.ModeDevice != 0:
-		return "device"
-	case m&os.ModeSocket != 0:
-		return "socket"
-	}
-	return "special file"
 }

@@ -3,14 +3,9 @@ import { FileXIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EvidenceKind } from "@/lib/api";
 import type { InboxFile } from "@/lib/api";
+import { humanSize } from "@/lib/format";
 import { AssignDialog } from "./AssignDialog";
 import { useDiscard } from "./useInbox";
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function Preview({ file }: { file: InboxFile }) {
   if (file.Kind === EvidenceKind.EvidenceKindImage) {
@@ -49,7 +44,7 @@ export function InboxRow({ file, token }: { file: InboxFile; token: string }) {
       <div className="min-w-0 flex-1 space-y-1 text-sm">
         <div className="truncate font-medium">{file.Name}</div>
         <div className="text-xs text-muted-foreground">
-          {formatBytes(file.Size)} · {new Date(file.ModTime).toLocaleString()}
+          {humanSize(file.Size)} · {new Date(file.ModTime).toLocaleString()}
         </div>
         <div className="flex gap-2">
           <Button size="xs" disabled={!supported} onClick={() => setAssigning(true)} aria-label={`Assign ${file.Name}`}>

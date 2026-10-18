@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/netip"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -187,25 +185,13 @@ func (s *EvidenceService) Drop(ip, itemID string) error {
 	})
 }
 
-// evidenceDir returns hosts/<dir>/evidence under engagementDir for a plain
-// IP. IPv6 colons become underscores, the same rule as the store's host
-// directory names.
-func evidenceDir(engagementDir, ip string) (string, error) {
-	addr, err := netip.ParseAddr(ip)
-	if err != nil || addr.Zone() != "" {
-		return "", fmt.Errorf("invalid host ip %q", ip)
-	}
-	name := strings.ReplaceAll(addr.String(), ":", "_")
-	return filepath.Join(engagementDir, "hosts", name, "evidence"), nil
-}
-
 // evidenceFilePath returns the absolute path of the evidence file name on ip,
 // refusing anything but a plain name that stays under the engagement.
 func evidenceFilePath(engagementDir, ip, name string) (string, error) {
 	if name == "" || name != filepath.Base(name) || name == ".." || strings.HasPrefix(name, ".") {
 		return "", fmt.Errorf("%w %q", errBadEvidenceRef, name)
 	}
-	dir, err := evidenceDir(engagementDir, ip)
+	dir, err := store.EvidenceDir(engagementDir, ip)
 	if err != nil {
 		return "", err
 	}
@@ -232,16 +218,9 @@ type adoptable struct {
 
 // inspectFile checks that path is a small regular file of an accepted type and hashes it.
 func inspectFile(path string) (adoptable, error) {
-	info, err := os.Lstat(path)
+	f, info, err := evidence.OpenRegular(path)
 	if err != nil {
-		return adoptable{}, fmt.Errorf("stat %s: %w", path, err)
-	}
-	if !info.Mode().IsRegular() {
-		return adoptable{}, fmt.Errorf("%s is not a regular file", path)
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return adoptable{}, fmt.Errorf("open %s: %w", path, err)
+		return adoptable{}, err
 	}
 	defer func() { _ = f.Close() }()
 	data, err := io.ReadAll(io.LimitReader(f, maxImportBytes+1))
@@ -256,18 +235,15 @@ func inspectFile(path string) (adoptable, error) {
 		return adoptable{}, err
 	}
 	sum := sha256.Sum256(data)
+	mtime := info.ModTime().UTC()
+	if now := time.Now().UTC(); mtime.After(now) {
+		mtime = now // a clock set back must not date evidence in the future
+	}
 	return adoptable{
 		kind:   sniffed.Kind,
-		mtime:  minTime(info.ModTime().UTC(), time.Now().UTC()),
+		mtime:  mtime,
 		digest: hex.EncodeToString(sum[:]),
 	}, nil
-}
-
-func minTime(a, b time.Time) time.Time {
-	if a.After(b) {
-		return b
-	}
-	return a
 }
 
 // Adopt indexes a file that sits in the host's evidence directory with no
@@ -364,7 +340,7 @@ func (s *EvidenceService) Search(query string) ([]SearchHit, error) {
 		eng := st.Engagement()
 		hosts := make([]evidence.HostItems, 0, len(eng.Hosts))
 		for _, h := range eng.Hosts {
-			dir, err := evidenceDir(eng.Dir, h.IP)
+			dir, err := store.EvidenceDir(eng.Dir, h.IP)
 			if err != nil {
 				return err
 			}

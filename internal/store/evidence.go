@@ -83,10 +83,14 @@ func (s *Store) EvidenceListing(ip string) (EvidenceListing, error) {
 		NotIndexed: []string{},
 		Missing:    []model.EvidenceItem{},
 	}
+	present := make(map[string]bool, len(files))
+	for _, f := range files {
+		present[f] = true
+	}
 	indexed := make(map[string]bool, len(items))
 	for _, it := range items {
 		indexed[it.File] = true
-		if !slices.Contains(files, it.File) {
+		if !present[it.File] {
 			listing.Missing = append(listing.Missing, it)
 		}
 	}

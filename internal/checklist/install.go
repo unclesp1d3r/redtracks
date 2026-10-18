@@ -21,10 +21,10 @@ const installDirMode os.FileMode = 0o700
 // again, so an operator's deletion sticks.
 const manifestName = ".installed"
 
-// sliceOneBundled is the bundled set that shipped before the manifest existed.
+// preManifestBundled is the bundled set that shipped before the manifest existed.
 // A checklists folder with no manifest is assumed to have received exactly
-// these, so only files newer than slice one are added to it.
-var sliceOneBundled = []string{
+// these, so only files added after the manifest was introduced are added to it.
+var preManifestBundled = []string{
 	"_readme.md", "http.json", "kerberos.json", "ldap.json", "linux-privesc.json",
 	"llm-chat.json", "mcp-server.json", "rag-api.json", "smb.json", "ssh.json", "windows-privesc.json",
 }
@@ -98,7 +98,7 @@ func readManifest(dst string) ([]string, error) {
 		return nil, fmt.Errorf("read manifest: %w", err)
 	}
 	if _, statErr := os.Stat(dst); statErr == nil {
-		return slices.Clone(sliceOneBundled), nil
+		return slices.Clone(preManifestBundled), nil
 	} else if !errors.Is(statErr, fs.ErrNotExist) {
 		return nil, fmt.Errorf("stat %s: %w", dst, statErr)
 	}

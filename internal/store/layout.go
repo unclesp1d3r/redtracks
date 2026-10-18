@@ -98,3 +98,7 @@ func evidenceDirPath(dir, ip string) (string, error) {
 	}
 	return filepath.Join(d, evidenceDir), nil
 }
+
+// EvidenceDir returns the evidence directory for ip under engagementDir
+// (hosts/<ip with ':' as '_'>/evidence), or an error if ip is not a plain address.
+func EvidenceDir(engagementDir, ip string) (string, error) { return evidenceDirPath(engagementDir, ip) }

@@ -2,7 +2,6 @@ package evidence
 
 import (
 	"bufio"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -154,10 +153,11 @@ func matchItem(dir string, it model.EvidenceItem, query string) (string, bool) {
 }
 
 func searchFile(path, query string) (string, bool) {
-	if info, err := os.Lstat(path); err != nil || !info.Mode().IsRegular() {
+	abs, err := filepath.Abs(path)
+	if err != nil {
 		return "", false
 	}
-	f, err := os.Open(path)
+	f, _, err := OpenRegular(abs)
 	if err != nil {
 		return "", false
 	}

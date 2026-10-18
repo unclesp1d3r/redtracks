@@ -1,7 +1,7 @@
 package app
 
 // Capabilities reports which desktop integrations main.go wired in. The
-// server build leaves every field false and the frontend adapts (KTD15).
+// server build leaves every field false and the frontend adapts; internal/app never imports Wails.
 type Capabilities struct {
 	NativeDrop   bool // the window delivers dropped file paths to Go
 	NativeDialog bool // PickFile opens a native open-file dialog

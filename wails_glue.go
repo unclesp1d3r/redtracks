@@ -8,7 +8,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-// wireDesktop injects the native integrations (KTD15): capabilities, the
+// wireDesktop injects the native integrations so internal/app never imports Wails: capabilities, the
 // open-file dialog, the default application menu (so Cmd+V reaches the
 // webview on macOS) and the window's file-drop subscription.
 func wireDesktop(wailsApp *application.App, win *application.WebviewWindow, backend *app.App, dropper *app.Dropper) {

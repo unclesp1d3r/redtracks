@@ -14,9 +14,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
+	"github.com/unclesp1d3r/redtracks/internal/evidence"
 	"github.com/unclesp1d3r/redtracks/internal/store"
 )
 
@@ -47,24 +47,11 @@ type Source struct {
 // a symlink, FIFO, directory, or device is refused. A failed copy leaves no
 // file behind.
 func Import(engagementDir, srcPath string) (Source, error) {
-	if !filepath.IsAbs(srcPath) {
-		return Source{}, fmt.Errorf("session log path %q must be absolute", srcPath)
-	}
-	f, err := os.OpenFile(srcPath, os.O_RDONLY|openFlags, 0)
-	if errors.Is(err, syscall.ELOOP) {
-		return Source{}, fmt.Errorf("%s is a symbolic link; a session log must be a regular file", srcPath)
-	}
+	f, info, err := evidence.OpenRegular(srcPath)
 	if err != nil {
-		return Source{}, fmt.Errorf("open %s: %w", srcPath, err)
+		return Source{}, err
 	}
 	defer func() { _ = f.Close() }()
-	info, err := f.Stat()
-	if err != nil {
-		return Source{}, fmt.Errorf("stat %s: %w", srcPath, err)
-	}
-	if !info.Mode().IsRegular() {
-		return Source{}, fmt.Errorf("%s is a %s, not a regular file", srcPath, describeMode(info.Mode()))
-	}
 	return importReader(engagementDir, f, filepath.Base(srcPath), info.ModTime())
 }
 
@@ -136,18 +123,4 @@ func List(engagementDir string) ([]Source, error) {
 	}
 	slices.SortFunc(out, func(a, b Source) int { return strings.Compare(a.ID, b.ID) })
 	return out, nil
-}
-
-func describeMode(m os.FileMode) string {
-	switch {
-	case m.IsDir():
-		return "directory"
-	case m&os.ModeNamedPipe != 0:
-		return "named pipe"
-	case m&os.ModeDevice != 0:
-		return "device"
-	case m&os.ModeSocket != 0:
-		return "socket"
-	}
-	return "special file"
 }
