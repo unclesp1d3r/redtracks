@@ -5,6 +5,7 @@ import { NavLink, Outlet } from "react-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AddHostDialog } from "@/features/board/AddHostDialog";
+import { InboxCountBadge } from "@/features/inbox/InboxPanel";
 import { useErrorBanner } from "@/lib/errorBanner";
 import { EngagementService } from "@/lib/api";
 import { keys, useEngagementQuery } from "@/lib/query";
@@ -16,6 +17,9 @@ const NAV = [
   { label: "Tables", to: "/tables" },
   { label: "Import", to: "/import" },
   { label: "What's left", to: "/left" },
+  { label: "Evidence", to: "/evidence" },
+  { label: "Inbox", to: "/inbox", badge: true },
+  { label: "Session logs", to: "/logs" },
 ];
 
 export function AppShell() {
@@ -39,12 +43,13 @@ export function AppShell() {
               to={n.to}
               className={({ isActive }) =>
                 cn(
-                  "rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                  "flex items-center justify-between rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
                   isActive && "bg-sidebar-accent font-medium text-foreground",
                 )
               }
             >
               {n.label}
+              {"badge" in n && n.badge ? <InboxCountBadge /> : null}
             </NavLink>
           ))}
           <p className="mt-auto text-xs text-muted-foreground">

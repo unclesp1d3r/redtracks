@@ -6,9 +6,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BoardPage } from "@/features/board/BoardPage";
 import { EngagementsPage } from "@/features/engagements/EngagementsPage";
+import { EvidencePage } from "@/features/evidence/EvidencePage";
 import { HostPage } from "@/features/host/HostPage";
 import { ImportPage } from "@/features/import/ImportPage";
+import { InboxPanel } from "@/features/inbox/InboxPanel";
 import { WhatsLeftPage } from "@/features/left/WhatsLeftPage";
+import { SessionLogsPage } from "@/features/sessionlogs/SessionLogsPage";
 import { TablesPage } from "@/features/tables/TablesPage";
 import { queryClient } from "@/lib/query";
 
@@ -25,6 +28,9 @@ export const routes = [
           { path: "/tables", element: <TablesPage /> },
           { path: "/import", element: <ImportPage /> },
           { path: "/left", element: <WhatsLeftPage /> },
+          { path: "/evidence", element: <EvidencePage /> },
+          { path: "/inbox", element: <InboxPanel /> },
+          { path: "/logs", element: <SessionLogsPage /> },
         ],
       },
     ],
