@@ -53,6 +53,7 @@ type App struct {
 	log            *slog.Logger
 	logCloser      io.Closer
 	emit           func(name string, data any)
+	hooks          Hooks
 }
 
 // New prepares root, opens the log, installs the default checklists, loads
