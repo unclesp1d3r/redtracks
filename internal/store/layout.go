@@ -17,7 +17,11 @@ const (
 	evidenceDir  = "evidence"
 	hostsDir     = "hosts"
 	importsDir   = "imports"
+	logsDir      = "logs"
 )
+
+// LogsDir returns the session log directory of the engagement at engagementDir.
+func LogsDir(engagementDir string) string { return filepath.Join(engagementDir, logsDir) }
 
 func metaPath(dir string) string     { return filepath.Join(dir, metaFile) }
 func credsPath(dir string) string    { return filepath.Join(dir, credsFile) }
