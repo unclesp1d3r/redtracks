@@ -1,6 +1,7 @@
 package sessionlogs
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,5 +61,33 @@ func TestClipKeepsLongLinesWhilePageTruncates(t *testing.T) {
 			err,
 			maxLineBytes,
 		)
+	}
+}
+
+// A raw line longer than the clip cap is refused even when stripping its control
+// sequences would leave a short result; a truncated line must never be saved as proof.
+func TestClipRefusesLineOverCapEvenWhenStrippedShort(t *testing.T) {
+	dir := t.TempDir()
+	var b strings.Builder
+	b.WriteString("first\n")
+	for b.Len() < maxClipBytes+4096 {
+		b.WriteString("\x1b[31m\x1b[0m")
+	}
+	b.WriteString("the proof\nlast\n")
+	src := filepath.Join(dir, "ansi.log")
+	if err := os.WriteFile(src, []byte(b.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	engagement := filepath.Join(dir, "eng")
+	s, err := Import(engagement, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := Open(engagement, s.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.clipText(1, 1); !errors.Is(err, errClipTooBig) {
+		t.Fatalf("clip of an over-cap line returned %v, want errClipTooBig", err)
 	}
 }
