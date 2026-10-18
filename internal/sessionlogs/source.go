@@ -5,6 +5,7 @@
 package sessionlogs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -81,10 +82,46 @@ func importReader(engagementDir string, r io.Reader, original string, modTime ti
 	if err != nil {
 		return Source{}, errors.Join(err, removeQuietly(path))
 	}
+	if err := writeSidecar(path, original); err != nil {
+		return Source{}, errors.Join(err, removeQuietly(path))
+	}
 	return Source{
 		ID: strings.TrimSuffix(name, logFileSufix), Name: name, OriginalName: original,
 		Size: copied, ModTime: modTime, ImportedAt: now, Lines: l.Lines(),
 	}, nil
+}
+
+// sidecar is the small JSON file next to a log that keeps its original name.
+// The name is display text only and never becomes a path.
+type sidecar struct {
+	OriginalName string `json:"originalName"`
+}
+
+func sidecarPath(logPath string) string { return strings.TrimSuffix(logPath, logFileSufix) + ".json" }
+
+func writeSidecar(logPath, original string) error {
+	data, err := json.MarshalIndent(sidecar{OriginalName: original}, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode session log sidecar: %w", err)
+	}
+	if err := store.WriteAtomic(sidecarPath(logPath), append(data, '\n')); err != nil {
+		return fmt.Errorf("write session log sidecar: %w", err)
+	}
+	return nil
+}
+
+// readOriginalName returns the name saved beside logPath, or "" when the
+// sidecar is missing, unreadable, or empty (the stored name then stands in).
+func readOriginalName(logPath string) string {
+	data, err := os.ReadFile(sidecarPath(logPath))
+	if err != nil {
+		return ""
+	}
+	var sc sidecar
+	if json.Unmarshal(data, &sc) != nil {
+		return ""
+	}
+	return sc.OriginalName
 }
 
 // copyBounded copies r to w through a fixed buffer, hiding ReadFrom/WriteTo so

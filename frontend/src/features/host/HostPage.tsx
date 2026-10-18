@@ -42,7 +42,8 @@ function HostView({ eng, host }: { eng: Engagement; host: Host }) {
   const [isAdding, setIsAdding] = useState(false);
   const [tab, setTab] = useState("services");
   // The "Add caption" toast action asks for a caption field, which lives in the Evidence tab.
-  const isCaptionRequested = usePendingCaption() !== null;
+  // Only for this host: a request for another host's item has no field here to consume it.
+  const isCaptionRequested = usePendingCaption()?.ip === host.ip;
   useEffect(() => {
     if (isCaptionRequested) setTab("evidence");
   }, [isCaptionRequested]);

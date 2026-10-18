@@ -46,7 +46,7 @@ export function useCapture(ip: string) {
   const add = useMutation({
     meta: { silent: true },
     mutationFn: (v: AddInput) => EvidenceService.AddFromData(ip, v.name, v.data, v.lastModified, "", v.links),
-    onSuccess: (r) => reportAdded(qc, r.Item, r.Duplicate),
+    onSuccess: (r) => reportAdded(qc, r.Item, r.Duplicate, ip),
     onError: (e, v) => reportRefused(v.name, errorMessage(e)),
   });
 

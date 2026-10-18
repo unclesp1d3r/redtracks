@@ -97,7 +97,7 @@ describe("proof state on flags and access paths", () => {
       </PasteScope>,
     );
     const second = await screen.findByLabelText("Caption for b.png");
-    act(() => captionFocus.request("b"));
+    act(() => captionFocus.request(IP, "b"));
     await waitFor(() => expect(second).toHaveFocus());
     expect(captionFocus.get()).toBeNull();
   });

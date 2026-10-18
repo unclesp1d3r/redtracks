@@ -67,3 +67,52 @@ func TestImportRecordsSourceFacts(t *testing.T) {
 		t.Fatalf("source = %+v", src)
 	}
 }
+
+func TestListKeepsOriginalNameAfterImport(t *testing.T) {
+	dir := t.TempDir()
+	src, err := Import(dir, writeFile(t, numbered(3)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed, err := List(dir)
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("List = %v, %v; want one source (the sidecar is not a log)", listed, err)
+	}
+	if listed[0].OriginalName != "session.log" || listed[0].Name != src.Name {
+		t.Fatalf("listed = %+v, want original name session.log and stored name %s", listed[0], src.Name)
+	}
+}
+
+func TestListFallsBackToStoredNameWithoutUsableSidecar(t *testing.T) {
+	cases := map[string]func(t *testing.T, sidecarPath string){
+		"missing": func(t *testing.T, p string) {
+			t.Helper()
+			if err := os.Remove(p); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"corrupt": func(t *testing.T, p string) {
+			t.Helper()
+			if err := os.WriteFile(p, []byte("{not json"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+	for name, damage := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			src, err := Import(dir, writeFile(t, numbered(3)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			damage(t, filepath.Join(store.LogsDir(dir), src.ID+".json"))
+			listed, err := List(dir)
+			if err != nil || len(listed) != 1 {
+				t.Fatalf("List = %v, %v; want one source", listed, err)
+			}
+			if listed[0].OriginalName != src.Name {
+				t.Fatalf("OriginalName = %q, want stored name %q", listed[0].OriginalName, src.Name)
+			}
+		})
+	}
+}

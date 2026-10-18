@@ -107,8 +107,8 @@ func (l *Log) trimOffsets() []int64 {
 // Lines returns the number of lines, counting a final line with no newline.
 func (l *Log) Lines() int { return l.lines }
 
-// Source describes the log. OriginalName is the stored name, which is all a
-// restart can know.
+// Source describes the log. OriginalName comes from the import sidecar and
+// falls back to the stored name when the sidecar is missing or unreadable.
 func (l *Log) Source() Source {
 	name := filepath.Base(l.path)
 	stamp, _, _ := strings.Cut(l.id(), "-")
@@ -116,8 +116,12 @@ func (l *Log) Source() Source {
 	if err != nil {
 		imported = time.Time{} // an id that does not parse still lists, with no import time
 	}
+	original := readOriginalName(l.path)
+	if original == "" {
+		original = name
+	}
 	return Source{
-		ID: l.id(), Name: name, OriginalName: name, Size: l.size, ModTime: l.modTime,
+		ID: l.id(), Name: name, OriginalName: original, Size: l.size, ModTime: l.modTime,
 		ImportedAt: imported, Lines: l.lines,
 	}
 }

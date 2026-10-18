@@ -132,6 +132,19 @@ func TestInboxNamesWithSeparatorsAreRefusedBeforeFileAccess(t *testing.T) {
 	}
 }
 
+func TestValidateInboxNameAllowsDoubleDotInsideAName(t *testing.T) {
+	for _, name := range []string{"shot..png", "report..txt", "a.txt"} {
+		if err := validateInboxName(name); err != nil {
+			t.Errorf("validateInboxName(%q) = %v, want nil", name, err)
+		}
+	}
+	for _, name := range []string{"..", "a/b", "a\\b", "", ".", "a\x00b"} {
+		if err := validateInboxName(name); err == nil {
+			t.Errorf("validateInboxName(%q) accepted", name)
+		}
+	}
+}
+
 func TestInboxRemovalFailureAfterImportIsNotAnError(t *testing.T) {
 	f := openSample(t)
 	svc := NewEvidenceService(f.app)

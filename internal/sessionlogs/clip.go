@@ -32,26 +32,12 @@ func (l *Log) Clip(st *store.Store, ip string, src Source, from, to int) (model.
 		name = src.Name
 	}
 	caption := fmt.Sprintf("%s lines %d-%d", name, from+1, to+1)
-	added, err := st.AddEvidenceFile(ip, strings.NewReader(text), time.Now().UTC(), caption, nil)
-	if err != nil {
-		return model.EvidenceItem{}, err
-	}
-	item := added.Item
 	clip := model.ClipOf{LogID: src.ID, FirstLine: from, LastLine: to}
-	err = st.MutateEvidence(ip, func(f *model.EvidenceFile) error {
-		for i := range f.Items {
-			if f.Items[i].ID == item.ID {
-				f.Items[i].ClipOf = &clip
-				return nil
-			}
-		}
-		return fmt.Errorf("evidence item %s vanished before its clip provenance was recorded", item.ID)
-	})
+	added, err := st.AddEvidenceClip(ip, strings.NewReader(text), time.Now().UTC(), caption, nil, clip)
 	if err != nil {
 		return model.EvidenceItem{}, err
 	}
-	item.ClipOf = &clip
-	return item, nil
+	return added.Item, nil
 }
 
 // clipText returns the stripped lines from..to joined with newlines, ending in one.

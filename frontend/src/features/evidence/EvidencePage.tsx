@@ -34,13 +34,16 @@ export function EvidencePage() {
   });
   const snippets = new Map((hits.data ?? []).map((h) => [hitKey(h.ip, h.itemId), h.snippet]));
   const isSearching = query !== "";
+  // Filter by hits only once they have arrived; until then (or if the search fails) every item stays listed.
+  const isSearchApplied = isSearching && hits.isSuccess;
+  const isSearchPending = isSearching && hits.isPending;
 
   const hostsWithItems = (all.data ?? []).filter((h) => (h.View.items ?? []).length > 0);
   const visible = hostsWithItems
     .map((h) => ({
       ip: h.IP,
       items: (h.View.items ?? []).filter(
-        (it) => matchesFilters(h.IP, it, filters) && (!isSearching || snippets.has(hitKey(h.IP, it.id))),
+        (it) => matchesFilters(h.IP, it, filters) && (!isSearchApplied || snippets.has(hitKey(h.IP, it.id))),
       ),
     }))
     .filter((g) => g.items.length > 0);
@@ -54,7 +57,7 @@ export function EvidencePage() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" aria-busy={isSearchPending}>
       <h1 className="text-xl font-semibold">Evidence</h1>
       <QueryStates query={all} isEmpty={(d: HostEvidence[]) => !d.some((h) => (h.View.items ?? []).length > 0)} empty={empty}>
         {() => (
@@ -66,11 +69,19 @@ export function EvidencePage() {
               search={search}
               onSearchChange={setSearch}
             />
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              {shown === total ? `${total} ${total === 1 ? "item" : "items"}` : `${shown} of ${total} items`}
+            <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+              {isSearchPending
+                ? "Searching…"
+                : shown === total
+                  ? `${total} ${total === 1 ? "item" : "items"}`
+                  : `${shown} of ${total} items`}
             </p>
-            {isSearching && hits.isError && <p className="text-sm text-destructive">Search failed: {hits.error.message}</p>}
-            {visible.length === 0 && (
+            {isSearching && hits.isError && (
+              <p role="alert" className="text-sm text-destructive">
+                Search failed: {hits.error.message}
+              </p>
+            )}
+            {!isSearchPending && visible.length === 0 && (
               <p className="py-6 text-sm text-muted-foreground">No evidence matches these filters.</p>
             )}
             {visible.map((g) => (

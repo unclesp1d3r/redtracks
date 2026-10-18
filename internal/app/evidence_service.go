@@ -132,7 +132,7 @@ func (s *EvidenceService) DiscardInboxFile(name string) error {
 
 // validateInboxName accepts only a plain file name that cannot leave the inbox.
 func validateInboxName(name string) error {
-	if name == "" || name == "." || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") ||
+	if name == "" || name == "." || strings.ContainsAny(name, `/\`) || name == ".." ||
 		strings.ContainsRune(name, 0) {
 		return fmt.Errorf("%w %q", errBadInboxName, name)
 	}

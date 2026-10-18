@@ -1,24 +1,30 @@
 import { useSyncExternalStore } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { hostPath } from "./api";
 import type { DropResult, EvidenceItem, EvidenceView } from "./api";
 
 /** First segment of every per-host evidence query key. */
 export const EVIDENCE_PREFIX = "evidence";
 
-let pendingCaptionId: string | null = null;
+export interface CaptionRequest {
+  ip: string;
+  id: string;
+}
+
+let pendingCaption: CaptionRequest | null = null;
 const listeners = new Set<() => void>();
 
-/** The item whose caption field should take focus next ("Add caption" toast action). */
+/** The item (and its host) whose caption field should take focus next ("Add caption" toast action). */
 export const captionFocus = {
-  get: () => pendingCaptionId,
-  request: (id: string) => {
-    pendingCaptionId = id;
+  get: () => pendingCaption,
+  request: (ip: string, id: string) => {
+    pendingCaption = { ip, id };
     listeners.forEach((l) => l());
   },
   clear: () => {
-    if (pendingCaptionId === null) return;
-    pendingCaptionId = null;
+    if (pendingCaption === null) return;
+    pendingCaption = null;
     listeners.forEach((l) => l());
   },
   subscribe: (l: () => void) => {
@@ -29,7 +35,7 @@ export const captionFocus = {
   },
 };
 
-export function usePendingCaption(): string | null {
+export function usePendingCaption(): CaptionRequest | null {
   return useSyncExternalStore(captionFocus.subscribe, captionFocus.get);
 }
 
@@ -45,9 +51,22 @@ function identicalItemName(qc: QueryClient, added: EvidenceItem): string | undef
   return undefined;
 }
 
-/** Success toast (warning when the bytes already exist) with an Add caption action. */
-export function reportAdded(qc: QueryClient, item: EvidenceItem, isDuplicate: boolean) {
-  const action = { label: "Add caption", onClick: () => captionFocus.request(item.id) };
+/**
+ * Success toast (warning when the bytes already exist). With the host's ip it carries an Add caption
+ * action that opens that host's Evidence tab; without it (native drops) no action is offered, since
+ * no field could consume the request.
+ */
+export function reportAdded(qc: QueryClient, item: EvidenceItem, isDuplicate: boolean, ip?: string) {
+  const action = ip
+    ? {
+        label: "Add caption",
+        onClick: () => {
+          captionFocus.request(ip, item.id);
+          // The toast outlives navigation; the app uses a hash router.
+          if (window.location.hash !== `#${hostPath(ip)}`) window.location.hash = hostPath(ip);
+        },
+      }
+    : undefined;
   if (isDuplicate) {
     const twin = identicalItemName(qc, item) ?? "an existing item";
     toast.warning(`Stored ${item.file}, but identical bytes already exist as ${twin}.`, { action });

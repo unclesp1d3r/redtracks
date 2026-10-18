@@ -15,6 +15,7 @@ export function useSessionLogsQuery() {
 export function useImportLog(onImported: (source: SessionLogSource) => void) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { silent: true }, // ImportControl shows the error inline
     mutationFn: async (path?: string) => {
       const chosen = path ?? (await SessionLogService.PickLogFile());
       return chosen === "" ? null : SessionLogService.ImportPath(chosen);
@@ -53,9 +54,10 @@ export interface ClipArgs {
 export function useClip(id: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { silent: true }, // ClipDialog shows the error inline
     mutationFn: ({ ip, from, to }: ClipArgs) => SessionLogService.Clip(id, ip, from, to),
     onSuccess: (added, { ip }) => {
-      reportAdded(qc, added, false);
+      reportAdded(qc, added, false, ip);
       void qc.invalidateQueries({ queryKey: keys.evidence(ip) });
       void qc.invalidateQueries({ queryKey: keys.evidenceAll() });
     },

@@ -13,7 +13,7 @@ func RevealArgs(goos, path string) ([]string, error) {
 	case "darwin":
 		return []string{"open", "-R", path}, nil
 	case "windows":
-		return []string{"explorer", "/select," + path}, nil
+		return []string{"explorer", `/select,"` + path + `"`}, nil
 	case "linux":
 		return []string{"xdg-open", filepath.Dir(path)}, nil
 	}

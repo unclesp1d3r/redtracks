@@ -37,8 +37,17 @@ func InstallDefaults(src fs.FS, dst string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	_, statErr := os.Stat(dst)
+	isFresh := errors.Is(statErr, fs.ErrNotExist)
 	if err := os.MkdirAll(dst, installDirMode); err != nil {
 		return nil, fmt.Errorf("create %s: %w", dst, err)
+	}
+	if isFresh {
+		// An empty manifest marks the folder as ours, so an interrupted first
+		// install is retried in full instead of assuming the pre-manifest set.
+		if err := store.WriteAtomic(filepath.Join(dst, manifestName), nil); err != nil {
+			return nil, fmt.Errorf("write manifest: %w", err)
+		}
 	}
 	entries, err := fs.ReadDir(src, ".")
 	if err != nil {

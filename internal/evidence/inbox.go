@@ -105,8 +105,10 @@ func WatchInbox(ctx context.Context, dir string, every time.Duration, onChange f
 			}
 			return
 		}
+		recovered := lastErr != ""
 		lastErr = ""
-		if slices.Equal(ready, last) {
+		// After an error the consumer still shows it, so report even an unchanged set.
+		if !recovered && slices.Equal(ready, last) {
 			return
 		}
 		last = ready
@@ -128,10 +130,7 @@ func WatchInbox(ctx context.Context, dir string, every time.Duration, onChange f
 func ListInbox(dir string, ready []string) ([]InboxFile, error) {
 	out := make([]InboxFile, 0, len(ready))
 	for _, name := range ready {
-		f, ok, err := describe(dir, name)
-		if err != nil {
-			return nil, err
-		}
+		f, ok := describe(dir, name)
 		if ok {
 			out = append(out, f)
 		}
@@ -139,20 +138,22 @@ func ListInbox(dir string, ready []string) ([]InboxFile, error) {
 	return out, nil
 }
 
-func describe(dir, name string) (InboxFile, bool, error) {
+// describe lists one file. A file that cannot be opened or read (permissions, a
+// sharing violation) is listed with an empty Kind so it can still be discarded.
+func describe(dir, name string) (InboxFile, bool) {
 	fh, info, err := OpenRegular(filepath.Join(dir, name))
 	if err != nil {
 		var refused *RefusedError
 		if errors.Is(err, fs.ErrNotExist) || errors.As(err, &refused) {
-			return InboxFile{}, false, nil // gone, or not a regular file: never listed
+			return InboxFile{}, false // gone, or not a regular file: never listed
 		}
-		return InboxFile{}, false, fmt.Errorf("inbox %s: %w", name, err)
+		return InboxFile{Name: name}, true
 	}
 	defer func() { _ = fh.Close() }()
 	f := InboxFile{Name: name, Size: info.Size(), ModTime: info.ModTime()}
 	head, err := io.ReadAll(io.LimitReader(fh, previewReadBytes))
 	if err != nil {
-		return InboxFile{}, false, fmt.Errorf("read %s: %w", name, err)
+		return f, true
 	}
 	if s, err := Sniff(head[:min(len(head), SniffLen)]); err == nil {
 		f.Kind = s.Kind
@@ -160,7 +161,7 @@ func describe(dir, name string) (InboxFile, bool, error) {
 	if f.Kind == model.EvidenceKindText {
 		f.Preview = textPreview(head)
 	}
-	return f, true, nil
+	return f, true
 }
 
 // textPreview strips head and keeps the first previewLines lines, each cut to

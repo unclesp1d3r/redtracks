@@ -325,3 +325,27 @@ func TestCreateExclusiveNeverTruncates(t *testing.T) {
 		t.Fatalf("existing file changed: %q, %v", data, err)
 	}
 }
+
+func TestAddEvidenceClipRecordsProvenanceInOneWrite(t *testing.T) {
+	dir := copyFixture(t)
+	s := mustOpen(t, dir)
+	clip := model.ClipOf{LogID: "20261012T103005Z-1", FirstLine: 2, LastLine: 9}
+	got, err := s.AddEvidenceClip(fixtureIP, strings.NewReader("hello\n"), captured, "log lines 3-10", nil, clip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Item.ClipOf == nil || *got.Item.ClipOf != clip {
+		t.Fatalf("returned item clipOf = %+v, want %+v", got.Item.ClipOf, clip)
+	}
+	path, err := evidencePath(dir, fixtureIP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"clipOf"`) || !strings.Contains(string(data), `"logId": "`+clip.LogID+`"`) {
+		t.Fatalf("evidence.json lacks the clip provenance:\n%s", data)
+	}
+}

@@ -44,6 +44,20 @@ type AddedEvidence struct {
 func (s *Store) AddEvidenceFile(ip string, src io.Reader, capturedAt time.Time, caption string,
 	links []model.EvidenceLink,
 ) (AddedEvidence, error) {
+	return s.addEvidenceFile(ip, src, capturedAt, caption, links, nil)
+}
+
+// AddEvidenceClip is AddEvidenceFile for a clip of a session log: the item's
+// ClipOf provenance is written in the same index write as the item itself.
+func (s *Store) AddEvidenceClip(ip string, src io.Reader, capturedAt time.Time, caption string,
+	links []model.EvidenceLink, clip model.ClipOf,
+) (AddedEvidence, error) {
+	return s.addEvidenceFile(ip, src, capturedAt, caption, links, &clip)
+}
+
+func (s *Store) addEvidenceFile(ip string, src io.Reader, capturedAt time.Time, caption string,
+	links []model.EvidenceLink, clipOf *model.ClipOf,
+) (AddedEvidence, error) {
 	canon, err := validateIP(ip)
 	if err != nil {
 		return AddedEvidence{}, err
@@ -67,7 +81,7 @@ func (s *Store) AddEvidenceFile(ip string, src io.Reader, capturedAt time.Time, 
 	}
 	added, err := s.indexEvidence(canon, model.EvidenceItem{
 		ID: model.NewID(), File: written.name, Kind: sniffed.Kind, CapturedAt: capturedAt,
-		Caption: caption, Links: slices.Clone(links), SHA256: written.digest,
+		Caption: caption, Links: slices.Clone(links), SHA256: written.digest, ClipOf: clipOf,
 	})
 	if err != nil {
 		return AddedEvidence{}, errors.Join(err, s.discardUnindexed(canon, dir, written.name))

@@ -84,6 +84,26 @@ describe("EvidencePage", () => {
     expect(screen.getByText(/No evidence matches/)).toBeInTheDocument();
   });
 
+  it("keeps every item listed while the search is pending", async () => {
+    extra.Search.mockReturnValue(new Promise(() => {}));
+    renderApp(<EvidencePage />);
+    await screen.findByTestId("evidence-a");
+    fireEvent.change(screen.getByLabelText("Search evidence"), { target: { value: "needle" } });
+    expect(await screen.findByText("Searching…")).toBeInTheDocument();
+    expect(rowIds()).toEqual(["evidence-a", "evidence-b", "evidence-c"]);
+    expect(screen.queryByText(/No evidence matches/)).toBeNull();
+  });
+
+  it("keeps every item listed and shows an alert when the search fails", async () => {
+    extra.Search.mockRejectedValue(new Error("index offline"));
+    renderApp(<EvidencePage />);
+    await screen.findByTestId("evidence-a");
+    fireEvent.change(screen.getByLabelText("Search evidence"), { target: { value: "needle" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("index offline");
+    expect(rowIds()).toEqual(["evidence-a", "evidence-b", "evidence-c"]);
+    expect(screen.queryByText(/No evidence matches/)).toBeNull();
+  });
+
   it("AE8: a search lists only the matching item with its snippet", async () => {
     extra.Search.mockResolvedValue([{ ip: "10.0.0.1", itemId: "b", snippet: "...needle here..." }]);
     renderApp(<EvidencePage />);

@@ -31,10 +31,10 @@ function CaptionField({ ip, item }: Props) {
     if (value === syncedCaption) setValue(item.caption);
   }
   useEffect(() => {
-    if (pending !== item.id) return;
+    if (pending?.id !== item.id) return;
     wrap.current?.querySelector("input")?.focus();
     captionFocus.clear();
-  }, [pending, item.id]);
+  }, [pending?.id, item.id]);
 
   const commit = () => value !== item.caption && setCaption.mutate({ itemId: item.id, caption: value });
   return (

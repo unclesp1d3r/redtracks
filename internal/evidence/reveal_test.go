@@ -11,7 +11,7 @@ func TestRevealArgs(t *testing.T) {
 		want []string
 	}{
 		{"darwin", []string{"open", "-R", "/e/dir/a.png"}},
-		{"windows", []string{"explorer", `/select,/e/dir/a.png`}},
+		{"windows", []string{"explorer", `/select,"/e/dir/a.png"`}},
 		{"linux", []string{"xdg-open", "/e/dir"}},
 	}
 	for _, tc := range tests {
@@ -19,6 +19,10 @@ func TestRevealArgs(t *testing.T) {
 		if err != nil || !slices.Equal(got, tc.want) {
 			t.Errorf("%s: got %v, %v want %v", tc.goos, got, err, tc.want)
 		}
+	}
+	got, err := RevealArgs("windows", `C:\My Files\a.png`)
+	if want := []string{"explorer", `/select,"C:\My Files\a.png"`}; err != nil || !slices.Equal(got, want) {
+		t.Errorf("windows with space: got %v, %v want %v", got, err, want)
 	}
 	if _, err := RevealArgs("plan9", "/x"); err == nil {
 		t.Error("unsupported OS accepted")

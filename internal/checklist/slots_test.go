@@ -244,3 +244,39 @@ func TestInstallRespectsDeletionButAddsNewBundledName(t *testing.T) {
 		t.Fatalf("added = %v, %v; want ssh.json", added, err)
 	}
 }
+
+// failingFS is a bundled set whose named file cannot be read, to interrupt an install.
+type failingFS struct {
+	fs.FS
+
+	name string
+}
+
+func (f failingFS) Open(name string) (fs.File, error) {
+	if name == f.name {
+		return nil, fs.ErrPermission
+	}
+	return f.FS.Open(name)
+}
+
+func TestInterruptedFirstInstallIsRetriedInFull(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "checklists")
+	if _, err := checklist.InstallDefaults(failingFS{FS: checklists.FS, name: "smb.json"}, dst); err == nil {
+		t.Fatal("first install succeeded, want the interruption")
+	}
+
+	added, err := checklist.InstallDefaults(checklists.FS, dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(added, "smb.json") {
+		t.Fatalf("retry added %v, want the interrupted smb.json", added)
+	}
+	entries, err := os.ReadDir(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := shippedCount(t) + 2; len(entries) != want { // every json, the readme, the manifest
+		t.Fatalf("folder holds %d entries after retry, want %d", len(entries), want)
+	}
+}

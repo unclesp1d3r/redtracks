@@ -106,7 +106,7 @@ func TestServicePageSearchAndClip(t *testing.T) { // AE6
 	}
 	want := &model.ClipOf{LogID: src.ID, FirstLine: 100, LastLine: 139}
 	if item.Kind != model.EvidenceKindText || item.ClipOf == nil || *item.ClipOf != *want ||
-		!strings.Contains(item.Caption, src.ID) || !strings.Contains(item.Caption, "101-140") {
+		!strings.Contains(item.Caption, "tmux.log") || !strings.Contains(item.Caption, "101-140") {
 		t.Fatalf("item = %+v", item)
 	}
 	body, err := os.ReadFile(filepath.Join(f.dir, "hosts", sampleHost, "evidence", item.File))

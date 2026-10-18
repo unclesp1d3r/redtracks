@@ -28,7 +28,7 @@ export function useAssign() {
     meta: { silent: true },
     mutationFn: (v: AssignInput) => EvidenceService.Assign(v.token, v.name, v.ip, v.caption, v.links),
     onSuccess: (item, v) => {
-      reportAdded(qc, item, false);
+      reportAdded(qc, item, false, v.ip);
       void qc.invalidateQueries({ queryKey: keys.inbox() });
       void qc.invalidateQueries({ queryKey: keys.evidence(v.ip) });
       void qc.invalidateQueries({ queryKey: keys.evidenceAll() });

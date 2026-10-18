@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), warning: vi.fn(), error: vi.fn() }) }));
+
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
   const { apiMocks } = await import("@/test/evidenceMocks");
@@ -19,6 +21,7 @@ vi.mock("@/lib/api", async () => {
   };
 });
 
+import { toast } from "sonner";
 import { SessionLogService } from "@/lib/api";
 import type { SessionLogSource } from "@/lib/api";
 import { queryClient } from "@/lib/query";
@@ -112,6 +115,8 @@ describe("import control", () => {
     fireEvent.change(await screen.findByLabelText("Path to a session log"), { target: { value: "/x" } });
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("not a regular file");
+    // The error is inline; the global mutation toast would show it a second time, until dismissed.
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it("with a native dialog calls PickLogFile then ImportPath, and a cancel does nothing", async () => {
