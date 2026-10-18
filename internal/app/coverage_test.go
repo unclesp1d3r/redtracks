@@ -164,7 +164,8 @@ func TestHostChecklists(t *testing.T) {
 	host, _ := current(t, a).Host(sampleHost)
 
 	hostViews, err := h.Checklists(sampleHost, "")
-	if err != nil || len(hostViews) == 0 || len(hostViews[0].Items) == 0 {
+	linux := slices.IndexFunc(hostViews, func(v ChecklistView) bool { return v.Definition.ID == "linux-privesc" })
+	if err != nil || linux < 0 || len(hostViews[linux].Items) == 0 {
 		t.Fatalf("host checklists = %+v, err %v; want the linux definitions", hostViews, err)
 	}
 
@@ -318,16 +319,24 @@ func TestApplyRefusesPreviewFromAnotherStore(t *testing.T) {
 	}
 }
 
-func TestHostChecklistsSkipSlotsOnlyDefinitions(t *testing.T) {
+// A slots-only definition reaches the UI with no items, so its proof slots render
+// on the host; progress counting skips it separately.
+func TestHostChecklistsIncludeSlotsOnlyDefinitions(t *testing.T) {
 	a := openSample(t).app
 	views, err := NewHostService(a).Checklists(sampleHost, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, v := range views {
-		if v.Definition.ID == "exam-proofs" || len(v.Items) == 0 {
-			t.Fatalf("view %q (%d items) should not render an empty checklist", v.Definition.ID, len(v.Items))
-		}
+	idx := slices.IndexFunc(views, func(v ChecklistView) bool { return v.Definition.ID == "exam-proofs" })
+	if idx < 0 {
+		t.Fatalf("exam-proofs missing from host views %v", views)
+	}
+	if v := views[idx]; len(v.Items) != 0 || len(v.Definition.Slots) != 4 {
+		t.Fatalf(
+			"exam-proofs view = %d items, %d slots; want 0 items and 4 slots",
+			len(v.Items),
+			len(v.Definition.Slots),
+		)
 	}
 }
 

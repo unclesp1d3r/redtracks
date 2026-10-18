@@ -166,7 +166,8 @@ func (s *HostService) Checklists(ip, serviceID string) ([]ChecklistView, error) 
 	}
 	views := make([]ChecklistView, 0, len(defs))
 	for _, d := range defs {
-		if d.HasItems() {
+		// A slots-only definition has no items to merge but its proof slots render on the host.
+		if d.HasItems() || len(d.Slots) > 0 {
 			views = append(views, ChecklistView{Definition: d, Items: checklist.Merge(d, state)})
 		}
 	}
