@@ -22,8 +22,8 @@ func evidenceFilePath(dir string) string {
 	return filepath.Join(dir, "hosts", fixtureIP, evidenceFile)
 }
 
-func evDirOf(dir, ip string) string {
-	return filepath.Join(dir, "hosts", ip, evidenceDir)
+func evDirOf(dir string) string {
+	return filepath.Join(dir, "hosts", fixtureIP, evidenceDir)
 }
 
 func evidenceItems(s *Store, ip string) []model.EvidenceItem {
@@ -109,7 +109,7 @@ func TestMutateEvidenceUnknownHostFails(t *testing.T) {
 func TestHandAddedFileIsNotIndexedAndDirReported(t *testing.T) {
 	dir := copyFixture(t)
 	s := mustOpen(t, dir)
-	evDir := evDirOf(dir, fixtureIP)
+	evDir := evDirOf(dir)
 	mustWriteAll(t, filepath.Join(evDir, "dropped.png"), "png")
 	bumpMtime(t, filepath.Join(evDir, "dropped.png"))
 	changed, err := s.Reload()
@@ -128,7 +128,7 @@ func TestHandAddedFileIsNotIndexedAndDirReported(t *testing.T) {
 
 func TestDeletedFileIsMissingUntilEntryRemoved(t *testing.T) {
 	dir := copyFixture(t)
-	evDir := evDirOf(dir, fixtureIP)
+	evDir := evDirOf(dir)
 	mustWriteAll(t, filepath.Join(evDir, "shot.png"), "png")
 	mustWrite(t, evidenceFilePath(dir), validEvidenceJSON)
 	s := mustOpen(t, dir)

@@ -56,6 +56,7 @@ type EvidenceItem struct {
 	Kind       EvidenceKind   `json:"kind"`
 	CapturedAt time.Time      `json:"capturedAt"`
 	Caption    string         `json:"caption"`
+	SHA256     string         `json:"sha256,omitempty"` // hex digest of the stored bytes
 	Links      []EvidenceLink `json:"links"`
 	ClipOf     *ClipOf        `json:"clipOf,omitempty"`
 }
