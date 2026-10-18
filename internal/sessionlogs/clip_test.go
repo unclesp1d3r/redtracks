@@ -1,6 +1,8 @@
 package sessionlogs
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -22,5 +24,41 @@ func TestClipTextJoinsStrippedLines(t *testing.T) {
 	}
 	if !strings.HasSuffix(got, "\n") {
 		t.Fatal("clip must end with a newline")
+	}
+}
+
+// A clip keeps a selected line whole past the 64 KiB view limit; only the view is cut.
+func TestClipKeepsLongLinesWhilePageTruncates(t *testing.T) {
+	dir := t.TempDir()
+	long := strings.Repeat("x", maxLineBytes+1024)
+	src := filepath.Join(dir, "long.log")
+	if err := os.WriteFile(src, []byte("first\n"+long+"\nlast\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	engagement := filepath.Join(dir, "eng")
+	s, err := Import(engagement, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := Open(engagement, s.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text, err := l.clipText(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSuffix(text, "\n"); len(got) != len(long) {
+		t.Fatalf("clip kept %d bytes of a %d byte line", len(got), len(long))
+	}
+	page, err := l.Page(1, 1)
+	if err != nil || len(page) != 1 || len(page[0]) != maxLineBytes {
+		t.Fatalf(
+			"page = %d lines, first %d bytes, err %v; want one line cut at %d",
+			len(page),
+			len(page[0]),
+			err,
+			maxLineBytes,
+		)
 	}
 }

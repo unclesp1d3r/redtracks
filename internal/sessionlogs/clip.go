@@ -54,7 +54,7 @@ func (l *Log) clipText(from, to int) (string, error) {
 	}
 	var buf bytes.Buffer
 	var tooBig bool
-	err := l.scan(from, func(n int, line []byte) bool {
+	err := l.scanWithLimit(from, maxClipBytes+1, func(n int, line []byte) bool {
 		buf.WriteString(view(line))
 		buf.WriteByte('\n')
 		tooBig = buf.Len() > maxClipBytes

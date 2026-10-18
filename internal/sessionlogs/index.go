@@ -131,6 +131,12 @@ func (l *Log) id() string { return strings.TrimSuffix(filepath.Base(l.path), log
 // scan calls fn with each line number and view bytes from line `from` on until
 // fn returns false or the log ends. The bytes are only valid during the call.
 func (l *Log) scan(from int, fn func(n int, line []byte) bool) error {
+	return l.scanWithLimit(from, maxLineBytes, fn)
+}
+
+// scanWithLimit is scan with a caller-chosen per-line byte limit: the view keeps
+// maxLineBytes, a clip keeps whole lines up to the clip cap.
+func (l *Log) scanWithLimit(from, lineLimit int, fn func(n int, line []byte) bool) error {
 	if from < 0 || from >= l.lines {
 		return nil
 	}
@@ -147,7 +153,7 @@ func (l *Log) scan(from int, fn func(n int, line []byte) bool) error {
 	var line []byte
 	for n := cp * checkpointEvery; n < l.lines; n++ {
 		var err error
-		line, err = readLine(rd, line[:0])
+		line, err = readLine(rd, line[:0], lineLimit)
 		if err != nil {
 			return fmt.Errorf("read session log: %w", err)
 		}
@@ -158,13 +164,13 @@ func (l *Log) scan(from int, fn func(n int, line []byte) bool) error {
 	return nil
 }
 
-// readLine appends one line (without its newline, up to maxLineBytes) to dst
+// readLine appends one line (without its newline, up to lineLimit bytes) to dst
 // and discards the rest of an overlong line. A final line with no newline is
 // returned normally.
-func readLine(rd *bufio.Reader, dst []byte) ([]byte, error) {
+func readLine(rd *bufio.Reader, dst []byte, lineLimit int) ([]byte, error) {
 	for {
 		part, err := rd.ReadSlice('\n')
-		if room := maxLineBytes - len(dst); room > 0 {
+		if room := lineLimit - len(dst); room > 0 {
 			dst = append(dst, part[:min(len(part), room)]...)
 		}
 		if errors.Is(err, bufio.ErrBufferFull) {
