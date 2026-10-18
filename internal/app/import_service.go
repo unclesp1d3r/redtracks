@@ -1,7 +1,6 @@
 package app
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"slices"
@@ -66,15 +65,9 @@ func (s *ImportService) PreviewData(name, dataBase64 string) (PreviewResponse, e
 }
 
 func (s *ImportService) previewData(name, dataBase64 string) (PreviewResponse, error) {
-	if base64.StdEncoding.DecodedLen(len(dataBase64)) > maxImportBytes+maxImportBytes/2 {
-		return PreviewResponse{}, fmt.Errorf("%s is larger than %d MB", name, maxImportMB)
-	}
-	raw, err := base64.StdEncoding.DecodeString(dataBase64)
+	raw, err := decodeCapped(name, dataBase64, maxImportBytes)
 	if err != nil {
-		return PreviewResponse{}, fmt.Errorf("decode %s: %w", name, err)
-	}
-	if len(raw) > maxImportBytes {
-		return PreviewResponse{}, fmt.Errorf("%s is larger than %d MB", name, maxImportMB)
+		return PreviewResponse{}, err
 	}
 	return s.preview(raw)
 }
