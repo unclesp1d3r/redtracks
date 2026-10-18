@@ -5,9 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { HostService, errorMessage } from "@/lib/api";
+import { EvidenceLinkKind, HostService, errorMessage } from "@/lib/api";
 import type { AccessPath, Credential, Host } from "@/lib/api";
 import { NONE } from "@/features/tables/shared";
+import { ProofStrip } from "@/features/evidence/ProofStrip";
+import { plainLink } from "@/features/evidence/proof";
+import { useTargetRow } from "@/features/evidence/usePaste";
+import { cn } from "@/lib/utils";
 
 const METHODS = ["direct", "chisel", "ssh-tunnel", "rdp", "winrm", "other"];
 
@@ -41,8 +45,7 @@ export function AccessPaths({ host, otherHosts, credentials }: Props) {
       ) : (
         <ul className="space-y-1">
           {paths.map((p) => (
-            <li key={p.id} className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="font-medium">{p.method}</span>
+            <AccessPathRow key={p.id} ip={host.ip} path={p}>
               {p.viaHostId && <span>via {hostLabel(p.viaHostId)}</span>}
               {p.credentialId && <span>as {credLabel(p.credentialId)}</span>}
               {p.command && <code className="rounded bg-muted px-1 font-mono text-xs">{p.command}</code>}
@@ -60,12 +63,27 @@ export function AccessPaths({ host, otherHosts, credentials }: Props) {
                   Remove
                 </Button>
               )}
-            </li>
+            </AccessPathRow>
           ))}
         </ul>
       )}
       <AddPathDialog ip={host.ip} open={adding} onOpenChange={setAdding} otherHosts={otherHosts} credentials={credentials} />
     </section>
+  );
+}
+
+function AccessPathRow({ ip, path, children }: { ip: string; path: AccessPath; children: React.ReactNode }) {
+  const link = plainLink(EvidenceLinkKind.EvidenceLinkAccessPath, path.id);
+  const name = `access path ${path.method}`;
+  const rowProps = useTargetRow(ip, link, name);
+  return (
+    <li>
+      <div {...rowProps} className={cn(rowProps.className, "flex flex-wrap items-center gap-2 rounded-md p-0.5 text-sm")}>
+        <span className="font-medium">{path.method}</span>
+        {children}
+        <ProofStrip ip={ip} link={link} name={name} words={{ yes: "proven", no: "unproven" }} />
+      </div>
+    </li>
   );
 }
 

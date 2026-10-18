@@ -12,3 +12,16 @@ export function toBase64(file: Blob): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+export function tooLargeMessage(name: string): string {
+  return `${name} is larger than ${MAX_IMPORT_BYTES / (1024 * 1024)} MB.`;
+}
+
+/** Standard base64 of the UTF-8 bytes of text. */
+export function textToBase64(text: string): string {
+  let binary = "";
+  new TextEncoder().encode(text).forEach((b) => {
+    binary += String.fromCharCode(b);
+  });
+  return btoa(binary);
+}

@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { QueryStates } from "@/components/QueryStates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { hostsOf } from "@/lib/api";
 import type { Engagement, Host } from "@/lib/api";
+import { usePendingCaption } from "@/lib/capture";
 import { useEngagementQuery } from "@/lib/query";
+import { EvidenceTab } from "@/features/evidence/EvidenceTab";
+import { PasteIndicator, PasteScope } from "@/features/evidence/PasteScope";
 import { AccessPaths } from "./AccessPaths";
 import { ChecklistStatus } from "./ChecklistStatus";
 import { AddServiceDialog } from "./AddServiceDialog";
@@ -37,11 +40,18 @@ export function HostPage() {
 function HostView({ eng, host }: { eng: Engagement; host: Host }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [tab, setTab] = useState("services");
+  // The "Add caption" toast action asks for a caption field, which lives in the Evidence tab.
+  const isCaptionRequested = usePendingCaption() !== null;
+  useEffect(() => {
+    if (isCaptionRequested) setTab("evidence");
+  }, [isCaptionRequested]);
   const services = host.services ?? [];
   const selected = services.find((s) => s.id === selectedId) ?? services[0];
   const domain = domainFor(host, eng.Meta.domain);
 
   return (
+    <PasteScope ip={host.ip}>
     <div className="space-y-4">
       <HostHeader host={host} meta={eng.Meta} />
       <AccessPaths
@@ -50,10 +60,12 @@ function HostView({ eng, host }: { eng: Engagement; host: Host }) {
         credentials={eng.Creds.credentials ?? []}
       />
       <ChecklistStatus />
-      <Tabs defaultValue="services">
+      <PasteIndicator />
+      <Tabs value={tab} onValueChange={(v) => v && setTab(String(v))}>
         <TabsList>
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="host">Host checklists</TabsTrigger>
+          <TabsTrigger value="evidence">Evidence</TabsTrigger>
         </TabsList>
         <TabsContent value="services">
           <div className="grid grid-cols-[14rem_1fr] gap-4">
@@ -73,9 +85,13 @@ function HostView({ eng, host }: { eng: Engagement; host: Host }) {
         <TabsContent value="host">
           <ChecklistPane ip={host.ip} serviceId="" domain={domain} />
         </TabsContent>
+        <TabsContent value="evidence">
+          <EvidenceTab ip={host.ip} />
+        </TabsContent>
       </Tabs>
       <NotesEditor ip={host.ip} />
       <AddServiceDialog ip={host.ip} open={isAdding} onOpenChange={setIsAdding} />
     </div>
+    </PasteScope>
   );
 }

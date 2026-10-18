@@ -39,6 +39,7 @@ export function ChecklistPane({ ip, serviceId, domain }: PaneProps) {
           views={views}
           targetIp={ip}
           domain={domain}
+          serviceId={serviceId}
           onSet={(itemId, status, note) => setItem.mutate({ itemId, status, note })}
         />
       )}
@@ -69,7 +70,7 @@ export function ServicePanel({ ip, service, findings, domain }: Props) {
         <WebPathsTable paths={service.webPaths ?? []} />
       </TabsContent>
       <TabsContent value="findings">
-        <FindingsList findings={serviceFindings} />
+        <FindingsList ip={ip} findings={serviceFindings} />
       </TabsContent>
     </Tabs>
   );

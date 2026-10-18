@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 /** Payload of the backend's engagement:error event. Path is relative to the engagement folder. */
 export interface ErrorEvent {
-  Kind: "engagement" | "checklists";
+  Kind: "engagement" | "checklists" | "inbox";
   Path: string;
   Message: string;
 }
