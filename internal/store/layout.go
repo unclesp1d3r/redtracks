@@ -13,6 +13,8 @@ const (
 	findingsFile = "findings.json"
 	hostFile     = "host.json"
 	notesFile    = "notes.md"
+	evidenceFile = "evidence.json"
+	evidenceDir  = "evidence"
 	hostsDir     = "hosts"
 	importsDir   = "imports"
 )
@@ -73,4 +75,22 @@ func notesPath(dir, ip string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(d, notesFile), nil
+}
+
+// evidencePath returns the evidence.json path for ip.
+func evidencePath(dir, ip string) (string, error) {
+	d, err := hostDir(dir, ip)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, evidenceFile), nil
+}
+
+// evidenceDirPath returns the evidence directory for ip.
+func evidenceDirPath(dir, ip string) (string, error) {
+	d, err := hostDir(dir, ip)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, evidenceDir), nil
 }

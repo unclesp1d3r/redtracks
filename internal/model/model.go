@@ -263,6 +263,8 @@ type Engagement struct {
 	Hosts    []Host
 	Creds    Creds
 	Findings []Finding
+	// Evidence holds each host's evidence index, keyed by host IP.
+	Evidence map[string]EvidenceFile
 }
 
 // Service returns the service with the given ID.

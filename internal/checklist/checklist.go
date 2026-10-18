@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
+	"github.com/unclesp1d3r/redtracks/internal/store"
 )
 
 // Item is one checklist step.
@@ -223,19 +224,5 @@ func Watch(ctx context.Context, dir string, every time.Duration, onChange func([
 // dirSignature builds a string that changes whenever the set of *.json files
 // in dir, their sizes, or their modification times change.
 func dirSignature(dir string) (string, error) {
-	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
-	if err != nil {
-		return "", fmt.Errorf("glob %s: %w", dir, err)
-	}
-	sort.Strings(paths)
-
-	var sb strings.Builder
-	for _, path := range paths {
-		info, err := os.Stat(path)
-		if err != nil {
-			return "", fmt.Errorf("stat %s: %w", path, err)
-		}
-		fmt.Fprintf(&sb, "%s:%d:%d;", path, info.Size(), info.ModTime().UnixNano())
-	}
-	return sb.String(), nil
+	return store.DirSignature(dir, func(name string) bool { return strings.HasSuffix(name, ".json") })
 }
