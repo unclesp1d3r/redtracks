@@ -16,6 +16,7 @@ import (
 
 	"github.com/unclesp1d3r/redtracks/checklists"
 	"github.com/unclesp1d3r/redtracks/internal/checklist"
+	"github.com/unclesp1d3r/redtracks/internal/evidence"
 	"github.com/unclesp1d3r/redtracks/internal/store"
 )
 
@@ -27,12 +28,17 @@ const (
 	eventChanged     = "engagement:changed"
 	eventError       = "engagement:error"
 	checklistsSource = "checklists"
+	inboxDirName     = "inbox"
+	inboxSource      = "inbox"
+	// inboxDirMode keeps captured files private to the operator.
+	inboxDirMode = 0o700
 )
 
 // Poll intervals; variables so tests can shorten them.
 var (
 	pollInterval      = 2 * time.Second
 	checklistInterval = 2 * time.Second
+	inboxInterval     = 2 * time.Second
 )
 
 var errNoEngagement = errors.New("no engagement open")
@@ -54,6 +60,7 @@ type App struct {
 	logCloser      io.Closer
 	emit           func(name string, data any)
 	hooks          Hooks
+	inboxReady     []string // settled inbox file names, maintained with or without an engagement
 }
 
 // New prepares root, opens the log, installs the default checklists, loads
@@ -69,6 +76,9 @@ func New(root string) (*App, error) {
 		return nil, err
 	}
 	a := &App{Root: root, log: lg, logCloser: closer, defs: []checklist.Definition{}}
+	if err := os.MkdirAll(a.inboxDir(), inboxDirMode); err != nil {
+		lg.Error("create inbox", "err", err) // not fatal: the watcher treats a missing inbox as empty
+	}
 	dir := a.checklistsDir()
 	added, err := checklist.InstallDefaults(checklists.FS, dir)
 	if err != nil {
@@ -85,6 +95,7 @@ func New(root string) (*App, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cancelWatch = cancel
 	go checklist.Watch(ctx, dir, checklistInterval, a.onDefsChanged, a.onDefsError)
+	go evidence.WatchInbox(ctx, a.inboxDir(), inboxInterval, a.onInboxChanged, a.onInboxError)
 	return a, nil
 }
 
@@ -116,6 +127,20 @@ func (a *App) onDefsError(err error) {
 	a.log.Error("watch checklists", "err", err)
 	a.emitError(errorKindChecklists, a.checklistsDir(), err)
 }
+
+func (a *App) onInboxChanged(ready []string) {
+	a.mu.Lock()
+	a.inboxReady = ready
+	a.mu.Unlock()
+	a.emitEvent(eventChanged, []string{inboxSource})
+}
+
+func (a *App) onInboxError(err error) {
+	a.log.Error("watch inbox", "err", err)
+	a.emitError(errorKindInbox, a.inboxDir(), err)
+}
+
+func (a *App) inboxDir() string { return filepath.Join(a.Root, inboxDirName) }
 
 func (a *App) checklistsDir() string { return filepath.Join(a.Root, checklistsDir) }
 

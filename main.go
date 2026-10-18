@@ -48,6 +48,7 @@ func main() {
 			application.NewService(app.NewImportService(backend)),
 			application.NewService(app.NewChecklistService(backend)),
 			application.NewService(app.NewDiagnosticsService(backend)),
+			application.NewService(app.NewEvidenceService(backend)),
 		},
 		// Localhost-only and unauthenticated by design: single-operator machine, browser fallback.
 		Server: application.ServerOptions{Host: "localhost"},
