@@ -17,7 +17,7 @@ function views(status: ItemStatus, noteOfB = ""): ChecklistView[] {
   });
   return [
     {
-      Definition: { id: "d", title: "Def", match: { serviceTypes: [], hostOS: [] }, items: [] },
+      Definition: { id: "d", title: "Def", match: { serviceTypes: [], hostOS: [] }, items: [], slots: [] },
       Items: [item("a", ItemStatus.ItemTodo), item("b", status, noteOfB), item("c", ItemStatus.ItemTodo)],
     },
   ];
