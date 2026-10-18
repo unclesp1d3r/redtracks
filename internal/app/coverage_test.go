@@ -317,3 +317,27 @@ func TestApplyRefusesPreviewFromAnotherStore(t *testing.T) {
 		t.Fatal("a refused apply must keep the token")
 	}
 }
+
+func TestHostChecklistsSkipSlotsOnlyDefinitions(t *testing.T) {
+	a := openSample(t).app
+	views, err := NewHostService(a).Checklists(sampleHost, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range views {
+		if v.Definition.ID == "exam-proofs" || len(v.Items) == 0 {
+			t.Fatalf("view %q (%d items) should not render an empty checklist", v.Definition.ID, len(v.Items))
+		}
+	}
+}
+
+func TestStatusReportsFilesInstalledThisLaunch(t *testing.T) {
+	a, err := New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = a.Close() }()
+	if st := NewChecklistService(a).Status(); len(st.InstalledFiles) != shippedCount(t)+1 {
+		t.Fatalf("installed files = %v", st.InstalledFiles)
+	}
+}

@@ -77,6 +77,9 @@ func summarizeHost(eng model.Engagement, defs []checklist.Definition, h model.Ho
 func countState(defs []checklist.Definition, state model.ChecklistState) itemCounts {
 	var c itemCounts
 	for _, def := range defs {
+		if !def.HasItems() {
+			continue
+		}
 		for _, view := range checklist.Merge(def, state) {
 			c.total++
 			switch view.State.Status {

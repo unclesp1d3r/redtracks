@@ -41,17 +41,18 @@ var errNoEngagement = errors.New("no engagement open")
 type App struct {
 	Root string
 
-	mu          sync.Mutex
-	store       *store.Store
-	cancelPoll  context.CancelFunc
-	cancelWatch context.CancelFunc
-	defs        []checklist.Definition
-	defsErr     error
-	installErr  error
-	onOpen      []func()
-	log         *slog.Logger
-	logCloser   io.Closer
-	emit        func(name string, data any)
+	mu             sync.Mutex
+	store          *store.Store
+	cancelPoll     context.CancelFunc
+	cancelWatch    context.CancelFunc
+	defs           []checklist.Definition
+	defsErr        error
+	installErr     error
+	installedFiles []string
+	onOpen         []func()
+	log            *slog.Logger
+	logCloser      io.Closer
+	emit           func(name string, data any)
 }
 
 // New prepares root, opens the log, installs the default checklists, loads
@@ -68,9 +69,14 @@ func New(root string) (*App, error) {
 	}
 	a := &App{Root: root, log: lg, logCloser: closer, defs: []checklist.Definition{}}
 	dir := a.checklistsDir()
-	if _, err := checklist.InstallDefaults(checklists.FS, dir); err != nil {
+	added, err := checklist.InstallDefaults(checklists.FS, dir)
+	if err != nil {
 		a.installErr = err
 		lg.Error("install default checklists", "err", err)
+	}
+	if len(added) > 0 {
+		a.installedFiles = added
+		lg.Info("installed bundled checklist files", "files", added)
 	}
 	if err := a.reloadDefs(); err != nil {
 		lg.Error("load checklists", "err", err)
@@ -177,7 +183,7 @@ func (a *App) Definitions() []checklist.Definition {
 func (a *App) definitionsStatus() DefinitionsStatus {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	st := DefinitionsStatus{Count: len(a.defs)}
+	st := DefinitionsStatus{Count: len(a.defs), InstalledFiles: slices.Clone(a.installedFiles)}
 	if a.defsErr != nil {
 		st.Error = a.defsErr.Error()
 	}
