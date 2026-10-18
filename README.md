@@ -47,10 +47,14 @@ engagements/<name>/
   creds.json            credentials, users, shares, loot
   findings.json
   notes.md
+  logs/                 session logs you imported, copied unchanged
   hosts/<ip>/
     host.json           services, flags, access paths, checklist state
     notes.md
+    evidence.json       the evidence index: what each file proves
+    evidence/           screenshots and text captures, copied in
     imports/            raw scan output, copied unchanged
+inbox/                  drop screenshots here; the app offers to file them
 redtracks.log
 ```
 
@@ -58,9 +62,15 @@ The app writes the JSON files atomically and reloads them when you edit them by 
 
 ## Checklists
 
-A checklist is one JSON file in `checklists/` with a `match` rule (service types or host OS) and a list of items, each with a title, a hint, and commands. On first run the bundled set is copied there once and never overwritten. Edit, add, or delete files freely; the app reloads them while it runs.
+A checklist is one JSON file in `checklists/` with a `match` rule (service types or host OS) and a list of items, each with a title, a hint, and commands. A file may also declare `slots`: the proof a matching host or service owes, such as a shell screenshot. See `checklists/_readme.md`. On first run the bundled set is copied there once and never overwritten. Edit, add, or delete files freely; the app reloads them while it runs.
 
 On a host page, focus an item and press space to mark it done. Skip and N/A are buttons on the row. Commands substitute the host IP and engagement domain when copied.
+
+## Evidence
+
+Evidence is a screenshot or a text capture copied into `hosts/<ip>/evidence/` and indexed in `evidence.json` with the flags, findings, access paths, and proof slots it proves. Capture it three ways: drop or paste onto a host, a flag, a finding, an access path, or a slot; drop files into `~/RedTracks/inbox` and assign them from the Inbox screen; or import a terminal session log by path, search it, and clip a line range. Text is stored with terminal control sequences removed; images are stored byte for byte, 20 MB at most. Nothing is ever moved out of the engagement folder, and a file you drop into `evidence/` by hand shows up as "not indexed" until you adopt it.
+
+The board sorts hosts by owed proof first: missing flags and missing slots together. What's left names each missing slot beside the open checklist items.
 
 ## Add an importer
 
