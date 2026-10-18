@@ -39,7 +39,7 @@ export function usePage(id: string, from: number, count: number) {
 export function useLogSearch(id: string, query: string) {
   return useQuery({
     queryKey: ["sessionLogSearch", id, query],
-    queryFn: () => list(SessionLogService.Search(id, query, 0, SEARCH_LIMIT)),
+    queryFn: () => list(SessionLogService.Search(id, query, -1, SEARCH_LIMIT)),
     enabled: query !== "",
   });
 }

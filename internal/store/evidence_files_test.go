@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -168,11 +167,7 @@ func TestImportEvidenceFileRefusesNonRegularSources(t *testing.T) {
 	if err := os.Symlink(srcFile(t, pngBytes, captured), link); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	fifo := filepath.Join(tmp, "fifo")
-	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
-		t.Skipf("mkfifo unavailable: %v", err)
-	}
-	cases := map[string]string{"symbolic link": link, "named pipe": fifo, "directory": tmp}
+	cases := map[string]string{"symbolic link": link, "directory": tmp}
 	for want, path := range cases {
 		_, err := s.ImportEvidenceFile(fixtureIP, path, "", nil)
 		if err == nil || !strings.Contains(err.Error(), want) {

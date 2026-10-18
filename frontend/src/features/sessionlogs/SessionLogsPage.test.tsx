@@ -27,6 +27,7 @@ import { apiMocks, resetApiMocks } from "@/test/evidenceMocks";
 import { renderApp } from "@/test/render";
 import { ClipDialog } from "./ClipDialog";
 import { SessionLogsPage } from "./SessionLogsPage";
+import { SEARCH_LIMIT } from "./useSessionLog";
 
 const svc = vi.mocked(SessionLogService);
 
@@ -158,6 +159,37 @@ describe("LogViewer", () => {
     fireEvent.change(within(region).getByLabelText("Clip range"), { target: { value: "1-5001" } });
     expect(within(region).getByRole("status")).toHaveTextContent(/over the limit of 5,000 lines/);
     expect(within(region).getByRole("button", { name: "Clip to evidence" })).toBeDisabled();
+  });
+
+  it("search starts at the first line (afterLine -1)", async () => {
+    svc.Search.mockResolvedValue([{ Line: 0, Snippet: "first line" }]);
+    const region = await openLog();
+    fireEvent.change(within(region).getByLabelText("Search in log"), { target: { value: "first" } });
+    fireEvent.submit(within(region).getByLabelText("Search in log"));
+    expect(await within(region).findByRole("button", { name: "Line 1" })).toBeInTheDocument();
+    expect(svc.Search).toHaveBeenCalledWith("log1", "first", -1, SEARCH_LIMIT);
+  });
+
+  it("can clip a second range after a successful clip", async () => {
+    const region = await openLog();
+    await within(region).findByText("text 9");
+    fireEvent.change(within(region).getByLabelText("Clip range"), { target: { value: "10-49" } });
+    fireEvent.click(within(region).getByRole("button", { name: "Clip to evidence" }));
+    let dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("combobox", { name: "Host" }));
+    fireEvent.click(await screen.findByRole("option", { name: IP }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save clip" }));
+    await within(dialog).findByText(/Saved to/);
+    // The dialog also has an icon-only close button named "Close"; take the footer one.
+    const footerClose = within(dialog).getAllByRole("button", { name: "Close" }).find((b) => b.getAttribute("data-slot") === "button");
+    fireEvent.click(footerClose!);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    fireEvent.change(within(region).getByLabelText("Clip range"), { target: { value: "60-70" } });
+    fireEvent.click(within(region).getByRole("button", { name: "Clip to evidence" }));
+    dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByText(/Saved to/)).toBeNull();
+    expect(within(dialog).getByRole("button", { name: "Save clip" })).toBeInTheDocument();
   });
 
   it("search results jump the window to the line", async () => {

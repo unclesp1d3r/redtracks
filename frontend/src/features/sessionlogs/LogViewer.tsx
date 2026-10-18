@@ -10,7 +10,7 @@ import { SearchBox } from "./SearchBox";
 import { usePage } from "./useSessionLog";
 
 /** Lines fetched per window; the viewer never holds more than this in the DOM. */
-export const WINDOW_LINES = 200;
+const WINDOW_LINES = 200;
 const EDGE_PX = 8;
 
 const clampStart = (line: number, total: number) => Math.max(0, Math.min(line, total - WINDOW_LINES));
@@ -157,8 +157,8 @@ export function LogViewer({ log }: { log: SessionLogSource }) {
             : (parsed?.error ?? "Select lines to clip")}
         </span>
       </div>
-      {parsed?.range && (
-        <ClipDialog log={log} from={parsed.range.from} to={parsed.range.to} open={isClipOpen} onOpenChange={setIsClipOpen} />
+      {isClipOpen && parsed?.range && (
+        <ClipDialog log={log} from={parsed.range.from} to={parsed.range.to} open onOpenChange={setIsClipOpen} />
       )}
     </section>
   );

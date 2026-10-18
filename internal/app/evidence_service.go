@@ -25,7 +25,7 @@ var (
 // removeInboxFile deletes an inbox file; a variable so tests can force a failure.
 var removeInboxFile = os.Remove
 
-// EvidenceService exposes the inbox and, later, evidence capture to the frontend.
+// EvidenceService exposes the inbox and evidence capture, indexing and lookup to the frontend.
 type EvidenceService struct {
 	app     *App
 	mu      sync.Mutex
