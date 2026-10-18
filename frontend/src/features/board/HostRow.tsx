@@ -1,4 +1,4 @@
-import { CheckIcon, TriangleAlertIcon } from "lucide-react";
+import { CheckIcon, CircleDashedIcon, TriangleAlertIcon } from "lucide-react";
 import { Link } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -22,6 +22,7 @@ export function HostRow({ summary, host, flagTypes }: Props) {
   const captured = new Set((host?.flags ?? []).filter((f) => f.value !== "").map((f) => f.typeId));
   const pathCount = host?.accessPaths?.length ?? 0;
   const href = hostPath(summary.IP);
+  const owed = (summary.MissingFlags ?? []).length + (summary.MissingSlots ?? []).length;
   return (
     <TableRow>
       <TableCell>
@@ -49,7 +50,13 @@ export function HostRow({ summary, host, flagTypes }: Props) {
         </div>
       </TableCell>
       <TableCell className="font-mono text-xs tabular-nums">
-        {summary.ItemsDone}/{summary.ItemsTotal}
+        <div>
+          {summary.ItemsDone}/{summary.ItemsTotal}
+        </div>
+        <div data-testid="owed-proof" className="mt-0.5 inline-flex items-center gap-1 font-sans text-muted-foreground">
+          {owed === 0 ? <CheckIcon className="size-3.5" aria-hidden /> : <CircleDashedIcon className="size-3.5" aria-hidden />}
+          {owed === 0 ? "proof complete" : `${owed} ${owed === 1 ? "proof" : "proofs"} owed`}
+        </div>
       </TableCell>
       <TableCell>
         {summary.NoAccessPath ? (
