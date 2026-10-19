@@ -23,6 +23,19 @@ type HostSummary struct {
 	TotalPoints          int
 	ItemsDone            int
 	ItemsTotal           int
+	MissingSlots         []SlotRef // proof slots still owed, host-level first
+	OwedShare            float64   // missing flags and slots over expected flags and owed slots; 0 when nothing is owed
+}
+
+// SlotRef is one proof slot a host still owes. ServiceID and ServiceLabel are
+// empty for host-level slots.
+type SlotRef struct {
+	DefinitionID string
+	SlotID       string
+	Title        string
+	Hint         string
+	ServiceID    string
+	ServiceLabel string
 }
 
 // itemCounts tallies checklist items by state.
@@ -34,8 +47,9 @@ func (c itemCounts) add(o itemCounts) itemCounts {
 	return itemCounts{todo: c.todo + o.todo, done: c.done + o.done, total: c.total + o.total}
 }
 
-// Summarize returns one summary per host in board order: least flag progress
-// first, then lowest checklist completion, ties broken by IP. The input is
+// Summarize returns one summary per host in board order: most proof owed
+// first (missing flags and slots as a per-item share), then lowest checklist
+// completion, ties broken by IP. The input is
 // not modified.
 func Summarize(eng model.Engagement, defs []checklist.Definition) []HostSummary {
 	out := make([]HostSummary, len(eng.Hosts))
@@ -57,6 +71,7 @@ func summarizeHost(eng model.Engagement, defs []checklist.Definition, h model.Ho
 		}
 	}
 	flags := flagProgress(eng.Meta.FlagTypes, h)
+	slots := slotProgress(defs, h, eng.Evidence[h.IP].Items)
 	return HostSummary{
 		HostID:            h.ID,
 		IP:                h.IP,
@@ -71,12 +86,51 @@ func summarizeHost(eng model.Engagement, defs []checklist.Definition, h model.Ho
 		TotalPoints:       flags.total,
 		ItemsDone:         counts.done,
 		ItemsTotal:        counts.total,
+		MissingSlots:      slots.missing,
+		OwedShare:         share(len(flags.missing)+len(slots.missing), len(eng.Meta.FlagTypes)+slots.owed),
+	}
+}
+
+type slotTally struct {
+	missing []SlotRef
+	owed    int
+}
+
+// slotProgress lists the slots h owes that no evidence item fills: host-level
+// slots first, then each service's slots once per unfilled service.
+func slotProgress(defs []checklist.Definition, h model.Host, items []model.EvidenceItem) slotTally {
+	tally := slotTally{missing: []SlotRef{}}
+	tally.add(checklist.SlotsForHost(defs, h), checklist.FilledSlots(items, ""), model.Service{})
+	for _, s := range h.Services {
+		owed := checklist.SlotsForService(defs, s)
+		if len(owed) == 0 {
+			continue
+		}
+		tally.add(owed, checklist.FilledSlots(items, s.ID), s)
+	}
+	return tally
+}
+
+func (t *slotTally) add(owed []checklist.OwedSlot, filled map[string]bool, svc model.Service) {
+	t.owed += len(owed)
+	for _, slot := range owed {
+		if filled[slot.ID] {
+			continue
+		}
+		ref := SlotRef{DefinitionID: slot.DefinitionID, SlotID: slot.ID, Title: slot.Title, Hint: slot.Hint}
+		if svc.ID != "" {
+			ref.ServiceID, ref.ServiceLabel = svc.ID, svc.Label()
+		}
+		t.missing = append(t.missing, ref)
 	}
 }
 
 func countState(defs []checklist.Definition, state model.ChecklistState) itemCounts {
 	var c itemCounts
 	for _, def := range defs {
+		if !def.HasItems() {
+			continue
+		}
 		for _, view := range checklist.Merge(def, state) {
 			c.total++
 			switch view.State.Status {
@@ -132,8 +186,8 @@ func untriedCreds(creds []model.Credential, hostID string) []string {
 }
 
 func boardLess(a, b HostSummary) bool {
-	if ra, rb := ratio(a.FlagPoints, a.TotalPoints), ratio(b.FlagPoints, b.TotalPoints); ra != rb {
-		return ra < rb
+	if a.OwedShare != b.OwedShare {
+		return a.OwedShare > b.OwedShare
 	}
 	if ra, rb := ratio(a.ItemsDone, a.ItemsTotal), ratio(b.ItemsDone, b.ItemsTotal); ra != rb {
 		return ra < rb
@@ -146,6 +200,15 @@ func boardLess(a, b HostSummary) bool {
 func ratio(num, den int) float64 {
 	if den == 0 {
 		return 1
+	}
+	return float64(num) / float64(den)
+}
+
+// share is num/den with a zero denominator treated as 0: a host that owes no
+// proof sorts after every host that does.
+func share(num, den int) float64 {
+	if den == 0 {
+		return 0
 	}
 	return float64(num) / float64(den)
 }

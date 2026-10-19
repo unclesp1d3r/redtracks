@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ChecklistService, ItemStatus, errorMessage } from "@/lib/api";
 import type { ChecklistView, ItemView } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { SlotRows } from "@/features/evidence/SlotRow";
 
 type OnSet = (itemId: string, status: ItemStatus, note: string) => void;
 
@@ -15,21 +16,26 @@ interface Props {
   onSet: OnSet;
   targetIp: string;
   domain: string;
+  /** "" (the default) is the host-level checklist; it scopes the proof slots. */
+  serviceId?: string;
 }
 
 const IGNORED_FOCUS = "input,textarea,button,select,[role=menuitem]";
 
-export function Checklist({ views, onSet, targetIp, domain }: Props) {
+export function Checklist({ views, onSet, targetIp, domain, serviceId = "" }: Props) {
   return (
     <div className="space-y-4">
       {views.map((v) => (
         <section key={v.Definition.id} aria-label={v.Definition.title}>
           <h3 className="mb-1 text-sm font-semibold">{v.Definition.title}</h3>
-          <ul className="divide-y rounded-md border">
-            {(v.Items ?? []).map((item) => (
-              <ChecklistRow key={item.id} item={item} onSet={onSet} targetIp={targetIp} domain={domain} />
-            ))}
-          </ul>
+          {(v.Items ?? []).length > 0 && (
+            <ul className="divide-y rounded-md border">
+              {(v.Items ?? []).map((item) => (
+                <ChecklistRow key={item.id} item={item} onSet={onSet} targetIp={targetIp} domain={domain} />
+              ))}
+            </ul>
+          )}
+          <SlotRows ip={targetIp} serviceId={serviceId} slots={v.Definition.slots ?? []} />
         </section>
       ))}
     </div>

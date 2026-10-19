@@ -97,7 +97,7 @@ type fixture struct {
 // newTestApp builds an App over a temp root holding a copy of pg-sample.
 func newTestApp(t *testing.T) fixture {
 	t.Helper()
-	pollInterval, checklistInterval = testPollGap, testPollGap
+	pollInterval, checklistInterval, inboxInterval = testPollGap, testPollGap, testPollGap
 	root := t.TempDir()
 	dir := filepath.Join(root, engagementsDir, "pg-sample")
 	copyTree(t, fixtureDir, dir)

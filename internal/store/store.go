@@ -33,7 +33,9 @@ type Store struct {
 	failedMtimes map[string]time.Time
 	// lastErrs holds the text of the last stat or read error reported per path.
 	lastErrs map[string]string
-	mu       sync.Mutex
+	// dirSigs holds the last DirSignature seen per watched directory.
+	dirSigs map[string]string
+	mu      sync.Mutex
 }
 
 // Open loads engagement.json, creds.json, findings.json and every
@@ -47,6 +49,7 @@ func Open(dir string) (*Store, error) {
 
 		failedMtimes: map[string]time.Time{},
 		lastErrs:     map[string]string{},
+		dirSigs:      map[string]string{},
 	}
 	if _, err := s.Reload(); err != nil {
 		return nil, err
@@ -195,6 +198,7 @@ func (s *Store) reloadHosts(note func(path string, changed bool, err error)) {
 			continue
 		}
 		s.trackNotes(filepath.Join(filepath.Dir(sp.path), notesFile), note)
+		s.trackEvidence(ipFromDirName(e.Name()), note)
 		_, statErr := os.Stat(sp.path)
 		if errors.Is(statErr, fs.ErrNotExist) && s.mtimes[sp.path].IsZero() {
 			continue // a folder with only notes.md is a host with no structured state

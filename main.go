@@ -38,6 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	importSvc := app.NewImportService(backend)
 
 	wailsApp := application.New(application.Options{
 		Name:        appName,
@@ -45,14 +46,17 @@ func main() {
 		Services: []application.Service{
 			application.NewService(app.NewEngagementService(backend)),
 			application.NewService(app.NewHostService(backend)),
-			application.NewService(app.NewImportService(backend)),
+			application.NewService(importSvc),
 			application.NewService(app.NewChecklistService(backend)),
 			application.NewService(app.NewDiagnosticsService(backend)),
+			application.NewService(app.NewEvidenceService(backend)),
+			application.NewService(app.NewSessionLogService(backend)),
 		},
 		// Localhost-only and unauthenticated by design: single-operator machine, browser fallback.
 		Server: application.ServerOptions{Host: "localhost"},
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(assets),
+			Handler:    application.AssetFileServerFS(assets),
+			Middleware: app.EvidenceAssets(backend),
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
@@ -61,7 +65,7 @@ func main() {
 
 	backend.SetEmitter(func(name string, data any) { wailsApp.Event.Emit(name, data) })
 
-	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+	win := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     appName,
 		Width:     windowWidth,
 		Height:    windowHeight,
@@ -74,7 +78,9 @@ func main() {
 		},
 		BackgroundColour: application.NewRGB(bgRed, bgGreen, bgBlue),
 		URL:              "/",
+		EnableFileDrop:   true,
 	})
+	wireDesktop(wailsApp, win, backend, app.NewDropper(backend, importSvc))
 
 	if err := wailsApp.Run(); err != nil {
 		log.Fatal(err)

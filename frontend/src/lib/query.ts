@@ -2,6 +2,8 @@ import { Events } from "@wailsio/runtime";
 import { MutationCache, QueryCache, QueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChecklistService, EngagementService, errorMessage, list } from "./api";
+import type { DropResult, PreviewResponse } from "./api";
+import { EVIDENCE_PREFIX, reportDropResult } from "./capture";
 import { errorBanner, type ErrorEvent } from "./errorBanner";
 
 declare module "@tanstack/react-query" {
@@ -37,6 +39,13 @@ export const keys = {
   definitions: () => ["definitions"] as const,
   checklistStatus: () => ["checklistStatus"] as const,
   root: () => ["root"] as const,
+  evidence: (ip: string) => [EVIDENCE_PREFIX, ip] as const,
+  evidenceAll: () => ["evidenceAll"] as const,
+  inbox: () => ["inbox"] as const,
+  sessionLogs: () => ["sessionLogs"] as const,
+  capabilities: () => ["capabilities"] as const,
+  /** An import preview delivered by a native drop, waiting for the import page to take it. */
+  droppedPreview: () => ["droppedPreview"] as const,
 };
 
 /** Same query key as the rest of the app, so every screen shares one fetch. */
@@ -55,6 +64,8 @@ const INVALIDATED_ON_CHANGE = [
   keys.graph(),
   ["checklists"],
   keys.definitions(),
+  [EVIDENCE_PREFIX],
+  keys.evidenceAll(),
 ] as const;
 
 function invalidateEngagementQueries() {
@@ -82,14 +93,29 @@ export function subscribeToEngagementEvents(): () => void {
     const paths = Array.isArray(e.data) ? e.data.filter((p): p is string => typeof p === "string") : [];
     errorBanner.clearChanged(paths);
     if (paths.includes("checklists")) refreshChecklistStatus();
+    if (paths.includes("inbox")) {
+      errorBanner.clearKind("inbox");
+      void queryClient.invalidateQueries({ queryKey: keys.inbox() });
+      // "inbox" alone means only the inbox folder changed; the engagement files did not.
+      if (paths.every((p) => p === "inbox")) return;
+    }
     invalidateEngagementQueries();
   });
   const offError = Events.On("engagement:error", (e: { data: ErrorEvent }) => {
     errorBanner.add(e.data);
     if (e.data.Kind === "checklists") refreshChecklistStatus();
+    if (e.data.Kind === "inbox") void queryClient.invalidateQueries({ queryKey: keys.inbox() });
   });
+  const offDropped = Events.On("evidence:dropped", (e: { data: DropResult }) => handleDropped(e.data));
   return () => {
     offChanged();
     offError();
+    offDropped();
   };
+}
+
+/** Toasts a native drop and parks an import preview for ImportPage to pick up. */
+export function handleDropped(result: DropResult) {
+  reportDropResult(queryClient, result);
+  if (result.Preview) queryClient.setQueryData<PreviewResponse>(keys.droppedPreview(), result.Preview);
 }

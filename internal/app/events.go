@@ -11,10 +11,11 @@ import (
 const (
 	errorKindEngagement = "engagement"
 	errorKindChecklists = "checklists"
+	errorKindInbox      = "inbox"
 )
 
 // ErrorEvent is the payload of the "engagement:error" event. Kind is
-// "engagement" or "checklists". Path is the file, relative to the engagement
+// "engagement", "checklists" or "inbox". Path is the file, relative to the engagement
 // folder, when the store recorded one (see store.ErrorPath), and empty when unknown.
 type ErrorEvent struct {
 	Kind    string

@@ -1,0 +1,29 @@
+{
+  "id": "exam-proofs",
+  "title": "Exam proofs",
+  "match": {
+    "hostOS": ["*"]
+  },
+  "slots": [
+    {
+      "id": "exam-proofs.local",
+      "title": "local.txt proof",
+      "hint": "One frame: the contents of local.txt and ip addr (or ipconfig) visible together, in an interactive shell on the target."
+    },
+    {
+      "id": "exam-proofs.proof",
+      "title": "proof.txt proof",
+      "hint": "One frame: the contents of proof.txt and ip addr (or ipconfig) visible together, in an interactive shell on the target."
+    },
+    {
+      "id": "exam-proofs.shell",
+      "title": "Interactive shell",
+      "hint": "The interactive shell on the target, with the prompt, whoami and the host's address on screen."
+    },
+    {
+      "id": "exam-proofs.foothold",
+      "title": "Foothold",
+      "hint": "How the host was reached and how to get back in: the exploit or credential used, the listener or service, and the command to repeat it."
+    }
+  ]
+}

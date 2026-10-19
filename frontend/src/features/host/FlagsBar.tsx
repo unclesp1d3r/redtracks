@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { HostService } from "@/lib/api";
+import { EvidenceLinkKind, HostService } from "@/lib/api";
 import type { Flag, FlagType, Host } from "@/lib/api";
+import { ProofStrip } from "@/features/evidence/ProofStrip";
+import { plainLink } from "@/features/evidence/proof";
+import { useTargetRow } from "@/features/evidence/usePaste";
 import { cn } from "@/lib/utils";
 
 export function FlagsBar({ host, flagTypes }: { host: Host; flagTypes: FlagType[] }) {
@@ -26,6 +29,18 @@ interface ChipProps {
 }
 
 function FlagChip({ ip, flagType, flag }: ChipProps) {
+  const link = plainLink(EvidenceLinkKind.EvidenceLinkFlag, flagType.id);
+  const name = `flag ${flagType.label}`;
+  const rowProps = useTargetRow(ip, link, name);
+  return (
+    <div {...rowProps} className={cn(rowProps.className, "flex flex-wrap items-center gap-1.5 rounded-md p-0.5")}>
+      <FlagValueChip ip={ip} flagType={flagType} flag={flag} />
+      <ProofStrip ip={ip} link={link} name={name} words={{ yes: "proven", no: "unproven" }} />
+    </div>
+  );
+}
+
+function FlagValueChip({ ip, flagType, flag }: ChipProps) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(flag?.value ?? "");
   const [submitted, setSubmitted] = useState(flag?.submitted ?? false);

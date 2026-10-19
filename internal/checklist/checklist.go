@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
+	"github.com/unclesp1d3r/redtracks/internal/store"
 )
 
 // Item is one checklist step.
@@ -26,6 +27,24 @@ type Item struct {
 	Hint     string   `json:"hint"`
 	Commands []string `json:"commands"`
 }
+
+// Slot is one required-proof slot a definition declares; evidence is linked to
+// it by ID.
+type Slot struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Hint  string `json:"hint"`
+}
+
+// OwedSlot is a slot a host or service owes, with the definition that owns it.
+type OwedSlot struct {
+	Slot
+
+	DefinitionID string
+}
+
+// anyHostOS in match.hostOS matches every host, including one with no OS.
+const anyHostOS = "*"
 
 // Match describes which services or hosts a definition applies to.
 type Match struct {
@@ -39,8 +58,13 @@ type Definition struct {
 	Title string `json:"title"`
 	Match Match  `json:"match"`
 	Items []Item `json:"items"`
+	Slots []Slot `json:"slots"`
 	File  string `json:"-"`
 }
+
+// HasItems reports whether the definition has checklist items; a slots-only
+// definition renders no checklist and does not count toward completion.
+func (d Definition) HasItems() bool { return len(d.Items) > 0 }
 
 // ItemView pairs a checklist item with its recorded state.
 type ItemView struct {
@@ -84,6 +108,12 @@ func LoadDefinitions(dir string) ([]Definition, error) {
 			}
 			seen[item.ID] = base
 		}
+		for _, slot := range def.Slots {
+			if prior, ok := seen[slot.ID]; ok {
+				return nil, fmt.Errorf("duplicate item or slot id %q in %s and %s", slot.ID, prior, base)
+			}
+			seen[slot.ID] = base
+		}
 		defs = append(defs, def)
 	}
 	return defs, nil
@@ -101,6 +131,11 @@ func validateDefinition(def Definition, file string) error {
 	for i, item := range def.Items {
 		if item.ID == "" {
 			return fmt.Errorf("%s: definition %q item %d has an empty id", file, def.ID, i+1)
+		}
+	}
+	for i, slot := range def.Slots {
+		if slot.ID == "" {
+			return fmt.Errorf("%s: definition %q slot %d has an empty id", file, def.ID, i+1)
 		}
 	}
 	return nil
@@ -132,15 +167,55 @@ func ForService(defs []Definition, s model.Service) []Definition {
 }
 
 // ForHost returns the definitions whose match.hostOS include h.OS, compared
-// case-insensitively.
+// case-insensitively, or the wildcard "*", which matches every host.
 func ForHost(defs []Definition, h model.Host) []Definition {
 	out := make([]Definition, 0, len(defs))
 	for _, def := range defs {
-		if slices.ContainsFunc(def.Match.HostOS, func(v string) bool { return strings.EqualFold(v, h.OS) }) {
+		if slices.ContainsFunc(
+			def.Match.HostOS,
+			func(v string) bool { return v == anyHostOS || strings.EqualFold(v, h.OS) },
+		) {
 			out = append(out, def)
 		}
 	}
 	return out
+}
+
+// SlotsForHost returns the slots owed by h: those of every definition ForHost
+// matches.
+func SlotsForHost(defs []Definition, h model.Host) []OwedSlot {
+	return owedSlots(ForHost(defs, h))
+}
+
+// SlotsForService returns the slots owed by s. A slot on a service checklist
+// is owed once per matching service.
+func SlotsForService(defs []Definition, s model.Service) []OwedSlot {
+	return owedSlots(ForService(defs, s))
+}
+
+func owedSlots(defs []Definition) []OwedSlot {
+	out := []OwedSlot{}
+	for _, def := range defs {
+		for _, slot := range def.Slots {
+			out = append(out, OwedSlot{Slot: slot, DefinitionID: def.ID})
+		}
+	}
+	return out
+}
+
+// FilledSlots returns the IDs of slots that items fill. A slot link fills the
+// slot for serviceID when its serviceId matches; with serviceID "" (host-level
+// slots) any slot link on the host fills it, whatever its serviceId.
+func FilledSlots(items []model.EvidenceItem, serviceID string) map[string]bool {
+	filled := map[string]bool{}
+	for _, item := range items {
+		for _, link := range item.Links {
+			if link.Kind == model.EvidenceLinkSlot && (serviceID == "" || link.ServiceID == serviceID) {
+				filled[link.TargetID] = true
+			}
+		}
+	}
+	return filled
 }
 
 // Merge returns one ItemView per item in def, in order. An item with no
@@ -223,19 +298,5 @@ func Watch(ctx context.Context, dir string, every time.Duration, onChange func([
 // dirSignature builds a string that changes whenever the set of *.json files
 // in dir, their sizes, or their modification times change.
 func dirSignature(dir string) (string, error) {
-	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
-	if err != nil {
-		return "", fmt.Errorf("glob %s: %w", dir, err)
-	}
-	sort.Strings(paths)
-
-	var sb strings.Builder
-	for _, path := range paths {
-		info, err := os.Stat(path)
-		if err != nil {
-			return "", fmt.Errorf("stat %s: %w", path, err)
-		}
-		fmt.Fprintf(&sb, "%s:%d:%d;", path, info.Size(), info.ModTime().UnixNano())
-	}
-	return sb.String(), nil
+	return store.DirSignature(dir, func(name string) bool { return strings.HasSuffix(name, ".json") })
 }

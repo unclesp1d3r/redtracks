@@ -13,10 +13,13 @@ func NewChecklistService(a *App) *ChecklistService { return &ChecklistService{ap
 // DefinitionsStatus reports how the checklist definitions loaded. Error is the
 // last load or watch failure ("" when the current set loaded cleanly) and
 // InstallError is the failure to install the default set at startup.
+// InstalledFiles lists the bundled files this launch added to the checklists
+// folder (every file on a first run, only the newly shipped ones after).
 type DefinitionsStatus struct {
-	Count        int
-	Error        string
-	InstallError string
+	Count          int
+	Error          string
+	InstallError   string
+	InstalledFiles []string
 }
 
 // Status reports the loaded definition count and any load or install error.

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TriangleAlertIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -7,7 +7,7 @@ import { QueryStates } from "@/components/QueryStates";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ImportBadge, ImportService, hostsOf, type PreviewResponse } from "@/lib/api";
-import { useEngagementQuery } from "@/lib/query";
+import { keys, useEngagementQuery } from "@/lib/query";
 import { DropZone } from "./DropZone";
 import { PreviewTable } from "./PreviewTable";
 import { isResolved, ResolveHosts, toOverrides, type Choices } from "./ResolveHosts";
@@ -107,6 +107,19 @@ export function Preview({ response, onDone }: { response: PreviewResponse; onDon
 
 export function ImportPage() {
   const [response, setResponse] = useState<PreviewResponse | null>(null);
+  const qc = useQueryClient();
+  // A native drop's preview arrives over evidence:dropped and is parked in the query cache.
+  const dropped = useQuery({
+    queryKey: keys.droppedPreview(),
+    queryFn: () => Promise.resolve<PreviewResponse | null>(null),
+    enabled: false,
+    staleTime: Infinity,
+  }).data;
+  useEffect(() => {
+    if (!dropped) return;
+    setResponse(dropped);
+    qc.setQueryData(keys.droppedPreview(), null);
+  }, [dropped, qc]);
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Import</h1>

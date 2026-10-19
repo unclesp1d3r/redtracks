@@ -17,6 +17,9 @@ export const SCREENS = [
   { label: "Tables", to: "/tables" },
   { label: "Import", to: "/import" },
   { label: "What's left", to: "/left" },
+  { label: "Evidence", to: "/evidence" },
+  { label: "Inbox", to: "/inbox" },
+  { label: "Session logs", to: "/logs" },
   { label: "Engagements", to: "/" },
 ] as const;
 

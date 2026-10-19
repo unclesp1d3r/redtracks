@@ -43,7 +43,7 @@ The Wails build pipeline itself lives in `Taskfile.yml` and `build/*/Taskfile.ym
 
 ## Conventions that matter
 
-- **Keep logic in `internal/` core packages** (`model`, `store`, `checklist`, `importers`, `progress`), not in the thin `internal/app` Wails services.
+- **Keep logic in `internal/` core packages** (`model`, `store`, `checklist`, `importers`, `progress`, `evidence`, `sessionlogs`, `textutil`), not in the thin `internal/app` Wails services.
 - **All persistence goes through `internal/store`'s single atomic write path.** Never hold pointers into store state; mutate via closures against a freshly re-read document.
 - **JSON on disk** uses camelCase tags, two-space indentation, and struct-ordered fields; checklist items use stable IDs. The files are the interface — keep them readable and keep faith with external edits.
 - **Target-controlled strings are hostile.** Validate hostnames, domains, and OS strings from scan output before they become file paths, shell substitutions, or Mermaid labels.

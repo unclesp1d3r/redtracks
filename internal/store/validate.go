@@ -2,6 +2,8 @@ package store
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/unclesp1d3r/redtracks/internal/model"
 )
@@ -61,4 +63,34 @@ func checkItemStates(path, where string, c model.ChecklistState) error {
 		}
 	}
 	return nil
+}
+
+// checkEvidence rejects an evidence.json with duplicate ids, a file name that
+// is not a bare base name, or an unknown kind. Link targets are not checked:
+// a link to a record that no longer exists is tolerated.
+func checkEvidence(path string, f model.EvidenceFile) error {
+	seen := map[string]bool{}
+	for _, it := range f.Items {
+		switch {
+		case it.ID == "":
+			return fmt.Errorf("%s: evidence item %q has an empty id", path, it.File)
+		case seen[it.ID]:
+			return fmt.Errorf("%s: duplicate evidence id %q", path, it.ID)
+		case !isBareName(it.File):
+			return fmt.Errorf("%s: evidence %q has file %q, which is not a bare file name", path, it.ID, it.File)
+		case !it.Kind.IsValid():
+			return fmt.Errorf("%s: evidence %q has invalid kind %q", path, it.ID, it.Kind)
+		}
+		seen[it.ID] = true
+		for _, l := range it.Links {
+			if !l.Kind.IsValid() {
+				return fmt.Errorf("%s: evidence %q has a link with invalid kind %q", path, it.ID, l.Kind)
+			}
+		}
+	}
+	return nil
+}
+
+func isBareName(name string) bool {
+	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, `/\`) && filepath.Base(name) == name
 }

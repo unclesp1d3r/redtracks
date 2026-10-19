@@ -22,6 +22,7 @@ interface Props {
 export function hasNothingLeft(s: HostSummary): boolean {
   return (
     (s.MissingFlags ?? []).length === 0 &&
+    (s.MissingSlots ?? []).length === 0 &&
     (s.UntouchedServices ?? []).length === 0 &&
     s.OpenItems === 0 &&
     (s.UntriedCreds ?? []).length === 0 &&
@@ -41,6 +42,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function HostLeftCard({ summary, flagLabels, creds }: Props) {
   const href = hostPath(summary.IP);
   const missing = summary.MissingFlags ?? [];
+  const slots = summary.MissingSlots ?? [];
   const untouched = summary.UntouchedServices ?? [];
   const untried = summary.UntriedCreds ?? [];
   const chip = (key: string, label: string) => (
@@ -71,6 +73,19 @@ export function HostLeftCard({ summary, flagLabels, creds }: Props) {
         )}
         {missing.length > 0 && (
           <Section title="Missing flags">{missing.map((id) => chip(id, flagLabels.get(id) ?? id))}</Section>
+        )}
+        {slots.length > 0 && (
+          <Section title="Missing proof">
+            {slots.map((sl) => (
+              <li key={`${sl.DefinitionID}:${sl.SlotID}:${sl.ServiceID}`}>
+                <Link to={href} className="flex flex-wrap items-baseline gap-x-2 text-sm hover:underline">
+                  <span>{sl.Title}</span>
+                  {sl.ServiceLabel && <Badge variant="outline">{sl.ServiceLabel}</Badge>}
+                  {sl.Hint && <span className="text-xs text-muted-foreground">{sl.Hint}</span>}
+                </Link>
+              </li>
+            ))}
+          </Section>
         )}
         {untouched.length > 0 && (
           <Section title="Untouched services">{untouched.map((s) => chip(s, s))}</Section>

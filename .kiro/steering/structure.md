@@ -5,6 +5,7 @@ redtracks/
   main.go                 Wails app entry point; embeds frontend/dist, opens the window
   mise.toml               pinned toolchain and settings (bun as package manager)
   Taskfile.yml            root task runner, dispatches to build/<os>/Taskfile.yml
+  main.go, wails_glue*.go  entry point; the only files that import Wails (desktop vs server build tag)
   go.mod / go.sum         Go module: github.com/unclesp1d3r/redtracks
   .golangci.yml           linter and formatter config
   checklists/             embedded sample checklist definitions + embed.go, _readme.md
@@ -14,13 +15,16 @@ redtracks/
     checklist/            definition load, match, merge, safe command substitution, watch
     importers/            one file per tool + testdata/ fixtures; detect -> parse -> merge
     progress/             what's-left summaries, board ordering, Mermaid attack graph
-    app/                  Wails services (thin), logging, binding surface
+    evidence/             type sniffing, inbox watcher, derived evidence views, path resolution, reveal
+    sessionlogs/          session log import, sparse line index, paging, search, clip
+    textutil/             terminal control-sequence stripper
+    app/                  Wails services (thin), logging, asset routes, binding surface
   frontend/               React + TypeScript app
     src/
       lib/                api.ts, query.ts (TanStack Query + Wails events)
       components/         AppShell, Mermaid, CommandPalette, QueryStates, shared UI
         ui/               shadcn/ui components
-      features/           one folder per screen: engagements, board, host, tables, import, left
+      features/           one folder per screen: engagements, board, host, tables, import, left, evidence, inbox, sessionlogs
     bindings/             GENERATED Go->TS bindings (gitignored, do not hand-edit)
     e2e/                  Playwright specs
   build/                  per-platform Taskfiles, icons, Docker, packaging config
@@ -32,7 +36,7 @@ redtracks/
 
 Data flows **Frontend -> Wails services (`internal/app`) -> core packages (`internal/*`) -> disk**, with services emitting events back to the frontend for cache invalidation.
 
-- `internal/app` services are **thin**: they bind to the frontend and delegate to core packages. Keep logic and all tested behavior in the core packages (`model`, `store`, `checklist`, `importers`, `progress`), not in services.
+- `internal/app` services are **thin**: they bind to the frontend and delegate to core packages. Keep logic and all tested behavior in the core packages (`model`, `store`, `checklist`, `importers`, `progress`, `evidence`, `sessionlogs`, `textutil`), not in services.
 - Everything persistent goes through `internal/store`'s single atomic write path. Callers never hold pointers into store state; mutations are applied via closures against a freshly re-read document.
 - Importers are plain functions, not plugins: one parser file, one sniff rule, and one fixture per tool under `importers/testdata/`.
 - Progress/graph functions are pure and golden-tested where output must be stable.

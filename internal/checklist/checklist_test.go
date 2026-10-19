@@ -276,12 +276,12 @@ func shippedCount(t *testing.T) int {
 func TestInstallDefaultsOnlyOnce(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "checklists")
 
-	installed, err := checklist.InstallDefaults(checklists.FS, dst)
+	added, err := checklist.InstallDefaults(checklists.FS, dst)
 	if err != nil {
 		t.Fatalf("InstallDefaults: %v", err)
 	}
-	if !installed {
-		t.Fatal("expected installed=true on first call")
+	if len(added) == 0 {
+		t.Fatal("expected files added on first call")
 	}
 
 	entries, err := os.ReadDir(dst)
@@ -310,12 +310,12 @@ func TestInstallDefaultsOnlyOnce(t *testing.T) {
 		t.Fatalf("modify: %v", err)
 	}
 
-	installed, err = checklist.InstallDefaults(checklists.FS, dst)
+	added, err = checklist.InstallDefaults(checklists.FS, dst)
 	if err != nil {
 		t.Fatalf("InstallDefaults second call: %v", err)
 	}
-	if installed {
-		t.Fatal("expected installed=false on second call")
+	if len(added) != 0 {
+		t.Fatalf("second call added %v, want nothing", added)
 	}
 	data, err := os.ReadFile(modified)
 	if err != nil {
@@ -343,6 +343,9 @@ func TestShippedSetLoads(t *testing.T) {
 	ids := make([]string, 0, len(defs))
 	for _, def := range defs {
 		ids = append(ids, def.ID)
+		if !def.HasItems() {
+			continue // slots-only proof definitions have no checklist to size
+		}
 		if len(def.Items) < 5 || len(def.Items) > 10 {
 			t.Errorf("definition %s has %d items, want 5-10", def.ID, len(def.Items))
 		}
@@ -356,7 +359,7 @@ func TestShippedSetLoads(t *testing.T) {
 
 	sort.Strings(ids)
 	want := []string{
-		"http", "kerberos", "ldap", "linux-privesc", "llm-chat",
+		"exam-proofs", "http", "kerberos", "ldap", "linux-privesc", "llm-chat",
 		"mcp-server", "rag-api", "smb", "ssh", "windows-privesc",
 	}
 	sort.Strings(want)
@@ -415,26 +418,5 @@ func TestSubstituteRequiresDomainForDollarD(t *testing.T) {
 	}
 	if got, err := checklist.Substitute("nmap $T", "10.0.0.1", ""); err != nil || got != "nmap 10.0.0.1" {
 		t.Fatalf("got %q, %v", got, err)
-	}
-}
-
-func TestInstallDefaultsClearsStaleTmpAndLeavesNoTmp(t *testing.T) {
-	root := t.TempDir()
-	dst := filepath.Join(root, "checklists")
-	stale := dst + ".tmp"
-	if err := os.MkdirAll(stale, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	writeFile(t, stale, "leftover.json", "{}")
-
-	installed, err := checklist.InstallDefaults(checklists.FS, dst)
-	if err != nil || !installed {
-		t.Fatalf("InstallDefaults = %v, %v", installed, err)
-	}
-	if _, err := os.Stat(stale); !os.IsNotExist(err) {
-		t.Fatalf("staging dir still present: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(dst, "leftover.json")); !os.IsNotExist(err) {
-		t.Fatal("stale file leaked into the installed set")
 	}
 }
